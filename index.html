@@ -2,151 +2,181 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳助手 v23</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>旅遊分帳助手 v24 - 手機優化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
-        body { font-family: 'Noto+Sans+TC', sans-serif; font-size: 1.1rem; }
-        input, select, button { font-size: 1rem !important; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { 
+            font-family: 'Noto+Sans+TC', sans-serif; 
+            font-size: 1.15rem; /* 全局基礎字體放大 */
+            line-height: 1.6;
+        }
+        input, select, button { font-size: 1.1rem !important; }
         .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.active { max-height: 1000px; }
+        .collapsible-content.active { max-height: 1200px; }
         .arrow-icon { transition: transform 0.3s; }
         .arrow-icon.active { transform: rotate(180deg); }
-        /* 未選擇使用者時的震動或提醒效果 */
-        .user-warn { background-color: #fef08a !important; border: 2px solid #eab308 !important; }
+        .user-warn { background-color: #fef08a !important; border: 3px solid #eab308 !important; }
+        /* 針對手機列表強化 */
+        .expense-card { border-radius: 1rem; padding: 1rem; margin-bottom: 0.75rem; border: 1px solid #e2e8f0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
 </head>
-<body class="bg-slate-100 p-2 md:p-6 text-slate-700">
+<body class="bg-slate-50 p-3 md:p-6 text-slate-800">
 
-    <div class="max-w-4xl mx-auto">
-        <div id="statusHeader" class="text-center text-[10px] mb-2 font-bold text-rose-500 uppercase tracking-widest">⚠️ 尚未連線</div>
+    <div class="max-w-xl mx-auto"> <div id="statusHeader" class="text-center text-xs mb-2 font-bold text-rose-500 uppercase tracking-widest">⚠️ 尚未連線</div>
         
-        <div id="loginBox" class="bg-indigo-600 text-white p-6 rounded-3xl shadow-xl mb-6">
-            <h1 class="text-2xl font-bold mb-6 text-center">✈️ 雲端旅遊分帳 v23</h1>
+        <div id="loginBox" class="bg-indigo-600 text-white p-6 rounded-[2.5rem] shadow-2xl mb-6">
+            <h1 class="text-3xl font-black mb-6 text-center">✈️ 雲端分帳 v24</h1>
             <div class="space-y-4">
-                <div class="flex flex-col md:flex-row gap-3">
-                    <button onclick="prepareNewLedger()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-2xl font-bold shadow-md">➕ 開新帳簿</button>
-                    <div class="flex-1">
-                        <input type="text" id="roomId" class="w-full p-3 rounded-2xl text-black border-none outline-none" placeholder="輸入房間 ID">
-                        <label class="flex items-center gap-1 mt-2 text-[10px] cursor-pointer px-1 text-indigo-100">
-                            <input type="checkbox" id="saveIdCheck" class="w-4 h-4 accent-emerald-400"> 記住房間 ID
-                        </label>
-                    </div>
-                    <input type="password" id="roomPass" class="md:w-32 p-3 rounded-2xl text-black border-none outline-none" placeholder="暗號">
+                <input type="text" id="roomId" class="w-full p-4 rounded-2xl text-black font-bold text-center" placeholder="輸入房間 ID">
+                <input type="password" id="roomPass" class="w-full p-4 rounded-2xl text-black font-bold text-center" placeholder="輸入暗號">
+                <button onclick="initSync()" class="w-full bg-yellow-400 hover:bg-yellow-500 text-indigo-900 p-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95">進入房間</button>
+                <div class="flex justify-center gap-4 pt-2">
+                    <button onclick="prepareNewLedger()" class="text-indigo-200 text-sm font-bold underline">➕ 建立新帳簿</button>
+                    <label class="flex items-center gap-1 text-sm text-indigo-100">
+                        <input type="checkbox" id="saveIdCheck" class="w-5 h-5 accent-emerald-400"> 記住 ID
+                    </label>
                 </div>
-                <button onclick="initSync()" class="w-full bg-yellow-400 hover:bg-yellow-500 text-indigo-900 p-4 rounded-2xl font-black text-lg shadow-lg transition-all">進入房間</button>
             </div>
         </div>
 
-        <div id="mainUI" class="hidden space-y-4">
+        <div id="mainUI" class="hidden space-y-5">
             
-            <div class="bg-indigo-700 p-5 rounded-3xl shadow-xl border-b-8 border-indigo-900">
-                <div class="flex items-center justify-between">
-                    <span class="font-black text-white text-lg">👤 我是：</span>
-                    <select id="currentUser" class="p-3 rounded-2xl font-black text-indigo-700 outline-none min-w-[180px] shadow-inner" onchange="checkAuth()">
-                        <option value="">⚠️ 請先選擇姓名</option>
-                    </select>
+            <div class="bg-indigo-700 p-6 rounded-[2rem] shadow-xl border-b-8 border-indigo-900">
+                <label class="block text-indigo-200 text-sm font-bold mb-2">請確認您的身份：</label>
+                <select id="currentUser" class="w-full p-4 rounded-2xl font-black text-indigo-800 outline-none shadow-inner bg-white appearance-none text-center" onchange="checkAuth()">
+                    <option value="">⚠️ 請點此選擇姓名</option>
+                </select>
+            </div>
+
+            <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl flex justify-between items-center">
+                <div class="text-center flex-1 border-r border-white/10">
+                    <p class="text-xs opacity-60 mb-1">公帳總支出</p>
+                    <p id="fundSpent" class="font-mono font-black text-xl text-rose-400"></p>
+                </div>
+                <div class="text-center flex-1">
+                    <p class="text-sm text-yellow-400 font-black mb-1">💰 公帳剩餘</p>
+                    <p id="fundBalance" class="font-mono font-black text-3xl text-yellow-400"></p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <button onclick="toggleCollapsible('setupContent', 'setupArrow')" class="w-full p-4 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition">
-                        <span class="font-bold text-slate-500">⚙️ 帳簿設定</span>
-                        <span id="setupArrow" class="arrow-icon text-slate-400">▼</span>
+            <div class="grid grid-cols-1 gap-4">
+                <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                    <button onclick="toggleCollapsible('setupContent', 'setupArrow')" class="w-full p-5 flex justify-between items-center bg-slate-100">
+                        <span class="font-bold text-slate-600">⚙️ 帳簿與管理員設定</span>
+                        <span id="setupArrow" class="arrow-icon">▼</span>
                     </button>
-                    <div id="setupContent" class="collapsible-content px-4">
-                        <div class="py-4 space-y-3 border-t">
-                            <input type="text" id="memberInput" class="w-full p-3 border-2 rounded-xl text-sm" onchange="pushData()" placeholder="成員姓名 (用逗號隔開)">
-                            <div class="flex items-center justify-between px-1">
-                                <span class="text-xs font-bold text-orange-500">🌟 管理員:</span>
-                                <select id="fundManager" class="p-2 border-2 rounded-xl bg-yellow-50 font-bold text-sm" onchange="handleManagerChange()"></select>
+                    <div id="setupContent" class="collapsible-content px-5">
+                        <div class="py-5 space-y-4 border-t">
+                            <div>
+                                <label class="text-xs font-bold text-slate-400">成員名單 (用逗號隔開)</label>
+                                <input type="text" id="memberInput" class="w-full p-3 border-2 rounded-xl" onchange="pushData()">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-bold text-orange-600">🌟 指定管理員:</span>
+                                <select id="fundManager" class="p-3 border-2 rounded-xl bg-yellow-50 font-bold" onchange="handleManagerChange()"></select>
                             </div>
                         </div>
                     </div>
                 </div>
+
                 <div id="depositSection" class="bg-white rounded-3xl shadow-sm border border-orange-200 overflow-hidden">
-                    <button onclick="toggleCollapsible('depositContent', 'depositArrow')" class="w-full p-4 flex justify-between items-center bg-orange-50 hover:bg-orange-100 transition">
-                        <span class="font-bold text-orange-600">📥 預繳收錢</span>
+                    <button onclick="toggleCollapsible('depositContent', 'depositArrow')" class="w-full p-5 flex justify-between items-center bg-orange-50">
+                        <span class="font-bold text-orange-700">📥 預繳/集資收錢</span>
                         <div class="flex items-center gap-2">
                             <span id="lockHint" class="text-[10px] bg-rose-100 text-rose-500 px-2 py-1 rounded font-bold">身分鎖定</span>
-                            <span id="depositArrow" class="arrow-icon text-orange-300">▼</span>
+                            <span id="depositArrow" class="arrow-icon">▼</span>
                         </div>
                     </button>
-                    <div id="depositContent" class="collapsible-content px-4">
-                        <div class="py-4 space-y-3 border-t">
+                    <div id="depositContent" class="collapsible-content px-5">
+                        <div class="py-5 space-y-4 border-t">
+                            <input type="number" id="depAmount" placeholder="輸入每人金額" class="w-full p-4 border-2 rounded-xl text-2xl font-mono font-bold text-center">
+                            <button id="btnBulk" onclick="addBulkDeposit()" disabled class="w-full bg-slate-300 text-white p-4 rounded-2xl font-black">全員統一收錢</button>
                             <div class="flex gap-2">
-                                <input type="date" id="depDate" class="w-1/2 p-2 border-2 rounded-xl text-sm font-bold">
-                                <input type="number" id="depAmount" placeholder="每人金額" class="w-1/2 p-2 border-2 rounded-xl text-sm font-mono font-bold">
-                            </div>
-                            <button id="btnBulk" onclick="addBulkDeposit()" disabled class="w-full bg-slate-300 text-white p-3 rounded-2xl font-black text-sm">全員統一收錢</button>
-                            <div class="flex gap-2">
-                                <select id="depMember" class="flex-1 p-2 border-2 rounded-xl text-xs"></select>
-                                <button id="btnSingle" onclick="addSingleDeposit()" disabled class="bg-slate-300 text-white px-3 py-2 rounded-xl font-bold text-xs">單人收</button>
+                                <select id="depMember" class="flex-1 p-3 border-2 rounded-xl text-sm"></select>
+                                <button id="btnSingle" onclick="addSingleDeposit()" disabled class="bg-slate-300 text-white px-5 py-3 rounded-xl font-bold">單人收</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-gradient-to-r from-slate-800 to-slate-900 p-5 rounded-3xl text-white shadow-lg flex justify-around text-center">
-                <div><p class="text-[10px] opacity-50">總預收</p><p id="totalDeposit" class="font-mono font-bold text-emerald-400"></p></div>
-                <div><p class="text-[10px] opacity-50">總支出</p><p id="fundSpent" class="font-mono font-bold text-rose-400"></p></div>
-                <div class="border-l border-white/10 pl-4"><p class="text-[10px] text-yellow-400 font-bold">公帳餘額</p><p id="fundBalance" class="font-mono font-bold text-2xl text-yellow-400"></p></div>
-            </div>
-
-            <div id="expenseBox" class="p-6 bg-white rounded-3xl shadow-md border-2 border-indigo-50">
-                <h2 class="font-bold text-slate-600 mb-4 border-l-4 border-indigo-500 pl-3">🖊️ 新增消費</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div id="expenseBox" class="p-6 bg-white rounded-[2rem] shadow-lg border-2 border-indigo-100">
+                <h2 class="font-black text-2xl text-slate-700 mb-5 flex items-center gap-2">
+                    <span class="bg-indigo-100 p-2 rounded-xl">🖊️</span> 新增消費
+                </h2>
+                <div class="space-y-4">
                     <div class="flex gap-2">
-                        <input type="date" id="expDate" class="w-1/2 p-3 border-2 rounded-xl font-bold bg-slate-50">
-                        <select id="expCategory" class="w-1/2 p-3 border-2 rounded-xl font-bold">
+                        <input type="date" id="expDate" class="w-1/2 p-4 border-2 rounded-2xl font-bold bg-slate-50">
+                        <select id="expCategory" class="w-1/2 p-4 border-2 rounded-2xl font-bold text-center">
                             <option>早餐</option><option>午餐</option><option>晚餐</option><option>點心</option>
                             <option>宵夜</option><option>飲料</option><option>門票</option><option>交通</option>
                             <option>娛樂</option><option selected>其他</option>
                         </select>
                     </div>
-                    <input type="text" id="expDesc" placeholder="消費項目內容" class="p-3 border-2 rounded-xl">
+                    <input type="text" id="expDesc" placeholder="項目內容 (如：計程車)" class="w-full p-4 border-2 rounded-2xl font-bold">
                     <div class="flex gap-2">
-                        <input type="number" id="expAmount" placeholder="金額" class="w-1/2 p-3 border-2 rounded-xl font-mono text-lg font-bold">
-                        <select id="expPayer" class="w-1/2 p-3 border-2 rounded-xl font-bold text-indigo-700 bg-indigo-50"></select>
+                        <div class="w-1/2 relative">
+                            <span class="absolute left-3 top-4 text-slate-400 font-bold">$</span>
+                            <input type="number" id="expAmount" placeholder="金額" class="w-full p-4 pl-8 border-2 rounded-2xl font-mono text-2xl font-black text-indigo-600">
+                        </div>
+                        <select id="expPayer" class="w-1/2 p-4 border-2 rounded-2xl font-bold text-indigo-700 bg-indigo-50"></select>
                     </div>
-                    <button id="btnSubmitExp" onclick="addExpense()" class="bg-slate-300 text-white p-4 rounded-2xl font-black text-lg shadow-md transition-all">請先選擇身分</button>
-                </div>
-                <div id="involvedChecks" class="mt-4 flex flex-wrap gap-2 p-3 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-orange-500 overflow-hidden text-sm">
-                    <div class="bg-orange-50 p-2 font-bold flex justify-between"><span>📙 公帳支出</span><span id="subtotalFund"></span></div>
-                    <div id="listFund" class="max-h-[300px] overflow-y-auto"></div>
-                </div>
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-blue-500 overflow-hidden text-sm">
-                    <div class="bg-blue-50 p-2 font-bold flex justify-between"><span>📘 個人代墊</span><span id="subtotalIndiv"></span></div>
-                    <div id="listIndiv" class="max-h-[300px] overflow-y-auto"></div>
+                    
+                    <p class="text-sm font-bold text-slate-400 mt-2">哪些人分擔？ (預設全選)</p>
+                    <div id="involvedChecks" class="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></div>
+                    
+                    <button id="btnSubmitExp" onclick="addExpense()" class="w-full bg-slate-300 text-white p-5 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all mt-2">
+                        請先選擇身分
+                    </button>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border-t-4 border-emerald-500 overflow-hidden text-sm">
-                <div class="bg-emerald-50 p-2 font-bold flex justify-between text-emerald-800"><span>💵 預繳集資紀錄 (合併)</span><span id="subtotalDeposit"></span></div>
-                <div id="listDeposit" class="max-h-[200px] overflow-y-auto bg-slate-50/50"></div>
-            </div>
+            <div class="space-y-6">
+                <div>
+                    <div class="flex justify-between items-end px-2 mb-2">
+                        <h3 class="font-black text-xl text-orange-600">📙 公帳支出明細</h3>
+                        <span id="subtotalFund" class="text-sm font-mono bg-orange-100 px-3 py-1 rounded-full text-orange-700 font-bold"></span>
+                    </div>
+                    <div id="listFund" class="space-y-3"></div>
+                </div>
 
-            <div class="p-8 bg-white rounded-3xl border-4 border-emerald-500 shadow-2xl">
-                <h2 class="font-black text-emerald-800 text-xl mb-6 text-center">🏁 結算建議 (四捨五入)</h2>
-                <div id="splitResult" class="grid grid-cols-1 gap-3"></div>
-                <div class="mt-8 flex gap-3 border-t pt-6">
-                    <button onclick="exportCSV()" class="flex-1 bg-slate-100 p-3 rounded-xl font-bold text-xs">📥 下載報表</button>
-                    <button onclick="clearAllData()" class="flex-1 bg-rose-50 text-rose-600 p-3 rounded-xl font-bold text-xs">⚠️ 清空帳簿</button>
+                <div>
+                    <div class="flex justify-between items-end px-2 mb-2">
+                        <h3 class="font-black text-xl text-blue-600">📘 個人代墊明細</h3>
+                        <span id="subtotalIndiv" class="text-sm font-mono bg-blue-100 px-3 py-1 rounded-full text-blue-700 font-bold"></span>
+                    </div>
+                    <div id="listIndiv" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-emerald-50 rounded-3xl p-4 border border-emerald-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-black text-emerald-800">💵 預繳紀錄</h3>
+                        <span id="totalDeposit" class="font-mono font-bold text-emerald-600"></span>
+                    </div>
+                    <div id="listDeposit" class="space-y-2"></div>
                 </div>
             </div>
+
+            <div class="p-8 bg-white rounded-[2.5rem] border-4 border-emerald-500 shadow-2xl">
+                <h2 class="font-black text-emerald-800 text-2xl mb-6 text-center underline decoration-emerald-200 underline-offset-8">🏁 結算對帳建議</h2>
+                <div id="splitResult" class="space-y-4"></div>
+                
+                <div class="mt-10 grid grid-cols-2 gap-4">
+                    <button onclick="exportCSV()" class="bg-slate-100 p-4 rounded-2xl font-bold text-slate-600 border active:bg-slate-200">📥 報表</button>
+                    <button onclick="clearAllData()" class="bg-rose-50 text-rose-600 p-4 rounded-2xl font-bold border border-rose-100 active:bg-rose-200">⚠️ 清空</button>
+                </div>
+            </div>
+            
+            <p class="text-center text-[10px] text-slate-300 pb-10">旅遊分帳助手 v24 專業手機版</p>
         </div>
     </div>
 
     <script>
+        // --- Firebase 設定 (沿用您的設定) ---
         const firebaseConfig = { databaseURL: "https://project-2641836624074325409-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
@@ -156,7 +186,6 @@
         
         window.onload = function() {
             document.getElementById('expDate').valueAsDate = new Date();
-            document.getElementById('depDate').valueAsDate = new Date();
             const sid = localStorage.getItem('last_room_id');
             if (sid) { document.getElementById('roomId').value = sid; document.getElementById('saveIdCheck').checked = true; }
         };
@@ -164,7 +193,7 @@
         function prepareNewLedger() {
             const rid = 'trip-' + Math.random().toString(36).substr(2, 6);
             document.getElementById('roomId').value = rid;
-            alert("新 ID: " + rid);
+            alert("新帳簿 ID: " + rid + "\n請記住這個 ID 或是勾選「記住 ID」");
         }
 
         function toggleCollapsible(cId, aId) {
@@ -175,11 +204,11 @@
         function initSync() {
             roomId = document.getElementById('roomId').value.trim();
             roomPass = document.getElementById('roomPass').value.trim();
-            if (!roomId || !roomPass) return alert("請輸入 ID 與密碼");
+            if (!roomId || !roomPass) return alert("請輸入 ID 與暗號");
             db.ref('rooms/' + roomId).on('value', (snap) => {
                 const data = snap.val();
                 if (data) {
-                    if (data.password && data.password !== roomPass) { alert("密碼錯誤"); location.reload(); return; }
+                    if (data.password && data.password !== roomPass) { alert("暗號錯誤！"); location.reload(); return; }
                     if (document.getElementById('saveIdCheck').checked) localStorage.setItem('last_room_id', roomId);
                     else localStorage.removeItem('last_room_id');
                     members = data.members || []; expenses = data.expenses || []; deposits = data.deposits || []; manager = data.manager || "";
@@ -206,8 +235,8 @@
 
         function updateUI() {
             const uSel = document.getElementById('currentUser'), currentVal = uSel.value;
-            let uOpts = `<option value="">⚠️ 請先選擇姓名</option>`;
-            uOpts += members.map(m => `<option value="${m}" ${m===currentVal?'selected':''}>${m}</option>`).join('');
+            let uOpts = `<option value="">⚠️ 請先點此選擇姓名</option>`;
+            uOpts += members.map(m => `<option value="${m}" ${m===currentVal?'selected':''}>我是 ${m}</option>`).join('');
             uSel.innerHTML = uOpts;
             
             document.getElementById('fundManager').innerHTML = members.map(m => `<option value="${m}" ${m===manager?'selected':''}>${m}</option>`).join('');
@@ -220,17 +249,16 @@
             const uSel = document.getElementById('currentUser');
             const btnSubmit = document.getElementById('btnSubmitExp');
             
-            // 使用者選擇狀態處理
             if (!u) {
                 uSel.classList.add('user-warn');
                 btnSubmit.disabled = true;
                 btnSubmit.innerText = "請先選擇身分";
-                btnSubmit.className = "bg-slate-300 text-white p-4 rounded-2xl font-black text-lg shadow-md cursor-not-allowed";
+                btnSubmit.className = "w-full bg-slate-300 text-white p-5 rounded-2xl font-black text-2xl shadow-md cursor-not-allowed";
             } else {
                 uSel.classList.remove('user-warn');
                 btnSubmit.disabled = false;
-                btnSubmit.innerText = "確認新增";
-                btnSubmit.className = "bg-indigo-600 text-white p-4 rounded-2xl font-black text-lg shadow-md hover:bg-indigo-700";
+                btnSubmit.innerText = "確認新增紀錄";
+                btnSubmit.className = "w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all";
             }
 
             const isM = (u === m && m !== "");
@@ -238,12 +266,12 @@
             
             if (isM) {
                 depS.classList.remove('opacity-60'); btnB.disabled = false; btnS.disabled = false;
-                btnB.className = "w-full bg-orange-500 text-white p-3 rounded-2xl font-black shadow"; btnS.className = "bg-slate-600 text-white px-3 py-2 rounded-xl font-bold";
-                hint.innerText = "🔓 已授權管理"; hint.className = "text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded font-bold";
+                btnB.className = "w-full bg-orange-500 text-white p-4 rounded-2xl font-black shadow"; btnS.className = "bg-slate-700 text-white px-5 py-3 rounded-xl font-bold";
+                hint.innerText = "🔓 管理員已授權"; hint.className = "text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded font-bold";
             } else {
                 depS.classList.add('opacity-60'); btnB.disabled = true; btnS.disabled = true;
-                btnB.className = "w-full bg-slate-300 text-white p-3 rounded-2xl font-black cursor-not-allowed"; btnS.className = "bg-slate-300 text-white px-3 py-2 rounded-xl font-bold cursor-not-allowed";
-                hint.innerText = u ? "限管理員操作" : "身分鎖定"; hint.className = "text-[10px] bg-rose-100 text-rose-500 px-2 py-1 rounded font-bold";
+                btnB.className = "w-full bg-slate-300 text-white p-4 rounded-2xl font-black cursor-not-allowed"; btnS.className = "bg-slate-300 text-white px-5 py-3 rounded-xl font-bold cursor-not-allowed";
+                hint.innerText = u ? "限管理員操作" : "身分未確認"; hint.className = "text-[10px] bg-rose-100 text-rose-500 px-2 py-1 rounded font-bold";
             }
 
             const pSel = document.getElementById('expPayer'), pVal = pSel.value;
@@ -252,28 +280,28 @@
             pSel.innerHTML = opts;
             
             const inv = document.getElementById('involvedChecks');
-            if (inv.innerHTML === "") inv.innerHTML = members.map(mem => `<label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border-2"><input type="checkbox" checked value="${mem}" class="m-check w-5 h-5 accent-indigo-600"> <span class="font-bold text-sm">${mem}</span></label>`).join('');
+            if (inv.innerHTML === "") inv.innerHTML = members.map(mem => `<label class="flex items-center gap-3 cursor-pointer bg-white px-4 py-3 rounded-2xl border-2 active:bg-indigo-50"><input type="checkbox" checked value="${mem}" class="m-check w-6 h-6 accent-indigo-600"> <span class="font-black text-lg text-slate-700">${mem}</span></label>`).join('');
         }
 
         function addBulkDeposit() {
-            const d = document.getElementById('depDate').value, a = parseFloat(document.getElementById('depAmount').value);
-            if (isNaN(a) || a <= 0) return alert("金額錯誤");
-            if(confirm(`全員收錢：${members.length} 人各 $${a}，確定？`)) {
-                members.forEach(m => { deposits.push({ id: Date.now() + Math.random(), from: m, amount: a, date: d }); });
+            const a = parseFloat(document.getElementById('depAmount').value);
+            if (isNaN(a) || a <= 0) return alert("請輸入正確金額");
+            if(confirm(`全員收錢：${members.length} 人各收 $${a}？`)) {
+                members.forEach(m => { deposits.push({ id: Date.now() + Math.random(), from: m, amount: a, date: new Date().toISOString().split('T')[0] }); });
                 document.getElementById('depAmount').value = ""; pushData();
             }
         }
 
         function addSingleDeposit() {
-            const d = document.getElementById('depDate').value, f = document.getElementById('depMember').value, a = parseFloat(document.getElementById('depAmount').value);
-            if (isNaN(a) || a <= 0) return alert("金額錯誤");
-            deposits.push({ id: Date.now(), from: f, amount: a, date: d });
+            const f = document.getElementById('depMember').value, a = parseFloat(document.getElementById('depAmount').value);
+            if (isNaN(a) || a <= 0) return alert("請輸入正確金額");
+            deposits.push({ id: Date.now(), from: f, amount: a, date: new Date().toISOString().split('T')[0] });
             document.getElementById('depAmount').value = ""; pushData();
         }
 
         function addExpense() {
             const u = document.getElementById('currentUser').value;
-            if (!u) return alert("請先在上方選擇您的姓名！");
+            if (!u) return alert("請先選擇您的姓名！");
             const d = document.getElementById('expDate').value, c = document.getElementById('expCategory').value, de = document.getElementById('expDesc').value, a = parseFloat(document.getElementById('expAmount').value), p = document.getElementById('expPayer').value, i = Array.from(document.querySelectorAll('.m-check:checked')).map(el => el.value);
             if (!p || isNaN(a) || !de || i.length === 0) return alert("資料不完整");
             expenses.push({ id: Date.now(), date: d, category: c, desc: de, amount: a, paid_by: p, inv: i });
@@ -284,32 +312,45 @@
         function renderLists() {
             const fBox = document.getElementById('listFund'), iBox = document.getElementById('listIndiv'), dBox = document.getElementById('listDeposit');
             let sF = 0, sI = 0, sD = 0;
-            const expH = (e) => `<div class="p-3 border-b group hover:bg-slate-50 relative"><button onclick="deleteExp(${e.id})" class="absolute top-1 right-1 text-rose-300 opacity-0 group-hover:opacity-100 p-1">✕</button><div class="text-[9px] text-slate-400">${e.date}</div><div class="flex justify-between font-bold text-xs"><span>${catEmoji[e.category]||''}${e.desc}</span><span class="text-indigo-600 font-mono">$${Math.round(e.amount)}</span></div><div class="text-[8px] mt-1 text-slate-500">付款:${e.paid_by=='公帳'?'公':e.paid_by} · 👥:${e.inv.join(',')}</div></div>`;
-            fBox.innerHTML = expenses.filter(e => e.paid_by === '公帳').map(e => { sF += e.amount; return expH(e); }).join('');
-            iBox.innerHTML = expenses.filter(e => e.paid_by !== '公帳').map(e => { sI += e.amount; return expH(e); }).join('');
-            const grouped = {};
+            
+            const cardHTML = (e) => `
+                <div class="expense-card group relative">
+                    <button onclick="deleteExp(${e.id})" class="absolute top-2 right-2 text-rose-300 p-2 text-xl">✕</button>
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl bg-slate-100 p-3 rounded-2xl">${catEmoji[e.category]||'🏷️'}</div>
+                        <div class="flex-1">
+                            <div class="font-black text-xl text-slate-800">${e.desc}</div>
+                            <div class="text-sm text-slate-500 font-bold">${e.date} · ${e.paid_by=='公帳'?'公帳支付':e.paid_by+'代墊'}</div>
+                            <div class="text-xs mt-2 text-indigo-500 font-bold bg-indigo-50 inline-block px-2 py-1 rounded">分擔: ${e.inv.join(', ')}</div>
+                        </div>
+                        <div class="text-2xl font-black font-mono text-indigo-700">$${Math.round(e.amount)}</div>
+                    </div>
+                </div>`;
+
+            fBox.innerHTML = expenses.filter(e => e.paid_by === '公帳').map(e => { sF += e.amount; return cardHTML(e); }).join('') || "<p class='text-center p-10 text-slate-300 font-bold'>無公帳紀錄</p>";
+            iBox.innerHTML = expenses.filter(e => e.paid_by !== '公帳').map(e => { sI += e.amount; return cardHTML(e); }).join('') || "<p class='text-center p-10 text-slate-300 font-bold'>無代墊紀錄</p>";
+            
+            const groupedD = {};
             deposits.forEach(d => {
                 const k = d.date + "_" + d.amount;
-                if (!grouped[k]) grouped[k] = { date: d.date, amount: d.amount, people: [], ids: [] };
-                grouped[k].people.push(d.from); grouped[k].ids.push(d.id); sD += d.amount;
+                if (!groupedD[k]) groupedD[k] = { date: d.date, amount: d.amount, people: [], ids: [] };
+                groupedD[k].people.push(d.from); groupedD[k].ids.push(d.id); sD += d.amount;
             });
-            dBox.innerHTML = Object.values(grouped).map(g => {
-                const isE = g.people.length === members.length && members.length > 0;
-                return `<div class="p-2 border-b group hover:bg-slate-100 flex justify-between items-center text-[11px]">
-                    <div><span class="text-slate-400 font-mono">${g.date}</span> <span class="px-2 py-0.5 rounded ${isE?'bg-emerald-100 text-emerald-700':'bg-blue-100 text-blue-700'} font-bold">${isE ? '全員預繳' : g.people.length + '人預繳'}</span> <span class="font-bold text-slate-600">$${Math.round(g.amount)}</span></div>
-                    <button onclick="deleteBulkDep('${g.ids.join(',')}')" class="text-rose-300 opacity-0 group-hover:opacity-100 p-1">✕</button>
-                </div>`;
-            }).join('') || "<p class='text-center p-4 text-slate-300 text-xs'>尚無繳費紀錄</p>";
-            document.getElementById('totalDeposit').innerText = `$${Math.round(sD)}`;
-            document.getElementById('fundSpent').innerText = `-$${Math.round(sF)}`;
+            dBox.innerHTML = Object.values(groupedD).map(g => `
+                <div class="bg-white p-3 rounded-xl flex justify-between items-center text-sm shadow-sm">
+                    <div class="font-bold"><span class="text-slate-400 font-mono text-xs">${g.date}</span> <span class="text-emerald-600">${g.people.length === members.length ? '全員' : g.people.length+'人'}預繳</span> <span class="font-mono">$${g.amount}</span></div>
+                    <button onclick="deleteBulkDep('${g.ids.join(',')}')" class="text-rose-300 px-2">✕</button>
+                </div>`).join('');
+
+            document.getElementById('totalDeposit').innerText = `總收 $${Math.round(sD)}`;
+            document.getElementById('fundSpent').innerText = `$${Math.round(sF)}`;
             document.getElementById('fundBalance').innerText = `$${Math.round(sD - sF)}`;
-            document.getElementById('subtotalFund').innerText = `$${Math.round(sF)}`;
-            document.getElementById('subtotalIndiv').innerText = `$${Math.round(sI)}`;
-            document.getElementById('subtotalDeposit').innerText = `$${Math.round(sD)}`;
+            document.getElementById('subtotalFund').innerText = `小計 $${Math.round(sF)}`;
+            document.getElementById('subtotalIndiv').innerText = `小計 $${Math.round(sI)}`;
         }
 
-        function deleteExp(id) { if(confirm("刪除？")) { expenses = expenses.filter(e => e.id !== id); pushData(); } }
-        function deleteBulkDep(idsStr) { if(confirm("確定刪除這筆繳費？")) { const ids = idsStr.split(',').map(Number); deposits = deposits.filter(d => !ids.includes(d.id)); pushData(); } }
+        function deleteExp(id) { if(confirm("確定刪除這筆消費？")) { expenses = expenses.filter(e => e.id !== id); pushData(); } }
+        function deleteBulkDep(idsStr) { if(confirm("確定刪除這筆繳費紀錄？")) { const ids = idsStr.split(',').map(Number); deposits = deposits.filter(d => !ids.includes(d.id)); pushData(); } }
 
         function calculate() {
             if (members.length === 0) return;
@@ -330,7 +371,11 @@
                 splits.push({f: dbts[i].n, t: cr[j].n, a: Math.round(a)});
                 dbts[i].v -= a; cr[j].v -= a; if(dbts[i].v <= 0.5) i++; if(cr[j].v <= 0.5) j++;
             }
-            document.getElementById('splitResult').innerHTML = splits.map(s => `<div class="bg-indigo-50 p-4 rounded-2xl border-2 border-indigo-200 flex justify-between items-center shadow-sm"><span class="text-base"><b>${s.f}</b> ➔ <b>${s.t}</b></span><span class="text-rose-600 font-black text-xl font-mono">$${s.a}</span></div>`).join('') || "<p class='text-center text-slate-400 font-bold py-10 w-full'>✨ 帳目已結清</p>";
+            document.getElementById('splitResult').innerHTML = splits.map(s => `
+                <div class="bg-emerald-50 p-5 rounded-[1.5rem] border-2 border-emerald-200 flex justify-between items-center shadow-sm">
+                    <span class="text-lg font-bold"><b>${s.f}</b> ➔ <b>${s.t}</b></span>
+                    <span class="text-rose-600 font-black text-2xl font-mono">$${s.a}</span>
+                </div>`).join('') || "<p class='text-center text-slate-400 font-black py-10 w-full'>🎉 帳目已清，不相欠！</p>";
         }
 
         function exportCSV() {
@@ -340,7 +385,7 @@
             const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
             a.download = `旅遊分帳_${roomId}.csv`; a.click();
         }
-        function clearAllData() { if (confirm("永久清除帳簿？")) { db.ref('rooms/' + roomId).remove(); location.reload(); } }
+        function clearAllData() { if (confirm("這將永久清除所有紀錄，確定？")) { db.ref('rooms/' + roomId).remove(); location.reload(); } }
     </script>
 </body>
 </html>
