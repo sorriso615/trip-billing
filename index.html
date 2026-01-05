@@ -3,389 +3,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>旅遊分帳助手 v24 - 手機優化版</title>
+    <title>旅遊分帳助手 v45.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { 
-            font-family: 'Noto+Sans+TC', sans-serif; 
-            font-size: 1.15rem; /* 全局基礎字體放大 */
-            line-height: 1.6;
-        }
-        input, select, button { font-size: 1.1rem !important; }
-        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.active { max-height: 1200px; }
-        .arrow-icon { transition: transform 0.3s; }
-        .arrow-icon.active { transform: rotate(180deg); }
-        .user-warn { background-color: #fef08a !important; border: 3px solid #eab308 !important; }
-        /* 針對手機列表強化 */
-        .expense-card { border-radius: 1rem; padding: 1rem; margin-bottom: 0.75rem; border: 1px solid #e2e8f0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        body { font-family: 'Noto+Sans+TC', sans-serif; background-color: #f1f5f9; }
+        .is-locked { background-color: #e2e8f0 !important; cursor: not-allowed; color: #64748b !important; }
+        .admin-hidden { display: none !important; }
+        .settled-lock { pointer-events: none; opacity: 0.5; position: relative; }
+        .section-title { position: relative; padding-left: 1rem; border-left: 5px solid #6366f1; font-weight: 900; }
     </style>
 </head>
-<body class="bg-slate-50 p-3 md:p-6 text-slate-800">
+<body class="p-3 pb-24">
 
-    <div class="max-w-xl mx-auto"> <div id="statusHeader" class="text-center text-xs mb-2 font-bold text-rose-500 uppercase tracking-widest">⚠️ 尚未連線</div>
+    <div class="max-w-xl mx-auto">
+        <div id="status" class="text-[10px] text-center font-bold text-slate-400 mb-2 tracking-widest uppercase italic">V45.1 LOGIN OPTIMIZED</div>
         
-        <div id="loginBox" class="bg-indigo-600 text-white p-6 rounded-[2.5rem] shadow-2xl mb-6">
-            <h1 class="text-3xl font-black mb-6 text-center">✈️ 雲端分帳 v24</h1>
-            <div class="space-y-4">
-                <input type="text" id="roomId" class="w-full p-4 rounded-2xl text-black font-bold text-center" placeholder="輸入房間 ID">
-                <input type="password" id="roomPass" class="w-full p-4 rounded-2xl text-black font-bold text-center" placeholder="輸入暗號">
-                <button onclick="initSync()" class="w-full bg-yellow-400 hover:bg-yellow-500 text-indigo-900 p-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95">進入房間</button>
-                <div class="flex justify-center gap-4 pt-2">
-                    <button onclick="prepareNewLedger()" class="text-indigo-200 text-sm font-bold underline">➕ 建立新帳簿</button>
-                    <label class="flex items-center gap-1 text-sm text-indigo-100">
-                        <input type="checkbox" id="saveIdCheck" class="w-5 h-5 accent-emerald-400"> 記住 ID
-                    </label>
+        <div id="loginSection" class="bg-indigo-700 p-8 rounded-[2.5rem] shadow-2xl text-white mb-4">
+            <h1 class="text-3xl font-black text-center mb-6 italic">TripSplit v45</h1>
+            
+            <div class="space-y-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold opacity-70 ml-2 uppercase">Room Identity</label>
+                    <input type="text" id="roomId" class="w-full p-4 rounded-2xl text-black font-bold text-center outline-none focus:ring-4 ring-yellow-400/50" placeholder="輸入房間名稱">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold opacity-70 ml-2 uppercase">Room Password</label>
+                    <input type="password" id="roomPass" class="w-full p-4 rounded-2xl text-black font-bold text-center outline-none focus:ring-4 ring-yellow-400/50" placeholder="輸入進入暗號">
                 </div>
             </div>
+
+            <div class="flex items-center justify-center gap-2 my-5">
+                <input type="checkbox" id="rememberId" class="w-5 h-5 accent-yellow-400">
+                <label for="rememberId" class="font-bold text-sm">記住 ID</label>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="initSync('login')" class="w-full bg-yellow-400 text-indigo-900 p-5 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-all">進入帳簿</button>
+                
+                <button onclick="initSync('create')" class="w-full bg-indigo-800/50 border-2 border-indigo-400 text-indigo-100 p-4 rounded-2xl font-bold text-sm hover:bg-indigo-600 active:scale-95 transition-all">＋ 建立全新帳簿</button>
+            </div>
+            
+            <p class="text-[10px] text-center mt-6 opacity-50 px-4 leading-relaxed">提示：若要開啟新旅程，請輸入新名稱並點擊「建立全新帳簿」。</p>
         </div>
 
-        <div id="mainUI" class="hidden space-y-5">
-            
-            <div class="bg-indigo-700 p-6 rounded-[2rem] shadow-xl border-b-8 border-indigo-900">
-                <label class="block text-indigo-200 text-sm font-bold mb-2">請確認您的身份：</label>
-                <select id="currentUser" class="w-full p-4 rounded-2xl font-black text-indigo-800 outline-none shadow-inner bg-white appearance-none text-center" onchange="checkAuth()">
-                    <option value="">⚠️ 請點此選擇姓名</option>
-                </select>
-            </div>
-
-            <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl flex justify-between items-center">
-                <div class="text-center flex-1 border-r border-white/10">
-                    <p class="text-xs opacity-60 mb-1">公帳總支出</p>
-                    <p id="fundSpent" class="font-mono font-black text-xl text-rose-400"></p>
-                </div>
-                <div class="text-center flex-1">
-                    <p class="text-sm text-yellow-400 font-black mb-1">💰 公帳剩餘</p>
-                    <p id="fundBalance" class="font-mono font-black text-3xl text-yellow-400"></p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4">
-                <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
-                    <button onclick="toggleCollapsible('setupContent', 'setupArrow')" class="w-full p-5 flex justify-between items-center bg-slate-100">
-                        <span class="font-bold text-slate-600">⚙️ 帳簿與管理員設定</span>
-                        <span id="setupArrow" class="arrow-icon">▼</span>
+        <div id="mainUI" class="hidden space-y-6">
+            <div class="flex justify-between items-center px-2">
+                <div id="adminSettleZone" class="admin-hidden flex-1 mr-2">
+                    <button id="btnToggleSettle" onclick="toggleSettlement()" class="w-full py-2 rounded-xl font-black text-xs border-2 flex items-center justify-center gap-2 bg-white">
+                        <span id="settleText">啟動總結算</span>
                     </button>
-                    <div id="setupContent" class="collapsible-content px-5">
-                        <div class="py-5 space-y-4 border-t">
-                            <div>
-                                <label class="text-xs font-bold text-slate-400">成員名單 (用逗號隔開)</label>
-                                <input type="text" id="memberInput" class="w-full p-3 border-2 rounded-xl" onchange="pushData()">
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-bold text-orange-600">🌟 指定管理員:</span>
-                                <select id="fundManager" class="p-3 border-2 rounded-xl bg-yellow-50 font-bold" onchange="handleManagerChange()"></select>
-                            </div>
-                        </div>
-                    </div>
                 </div>
+                <button onclick="logout()" class="bg-slate-200 text-slate-500 px-4 py-2 rounded-xl font-bold text-xs">登出 / 切換房間</button>
+            </div>
 
-                <div id="depositSection" class="bg-white rounded-3xl shadow-sm border border-orange-200 overflow-hidden">
-                    <button onclick="toggleCollapsible('depositContent', 'depositArrow')" class="w-full p-5 flex justify-between items-center bg-orange-50">
-                        <span class="font-bold text-orange-700">📥 預繳/集資收錢</span>
-                        <div class="flex items-center gap-2">
-                            <span id="lockHint" class="text-[10px] bg-rose-100 text-rose-500 px-2 py-1 rounded font-bold">身分鎖定</span>
-                            <span id="depositArrow" class="arrow-icon">▼</span>
-                        </div>
-                    </button>
-                    <div id="depositContent" class="collapsible-content px-5">
-                        <div class="py-5 space-y-4 border-t">
-                            <input type="number" id="depAmount" placeholder="輸入每人金額" class="w-full p-4 border-2 rounded-xl text-2xl font-mono font-bold text-center">
-                            <button id="btnBulk" onclick="addBulkDeposit()" disabled class="w-full bg-slate-300 text-white p-4 rounded-2xl font-black">全員統一收錢</button>
-                            <div class="flex gap-2">
-                                <select id="depMember" class="flex-1 p-3 border-2 rounded-xl text-sm"></select>
-                                <button id="btnSingle" onclick="addSingleDeposit()" disabled class="bg-slate-300 text-white px-5 py-3 rounded-xl font-bold">單人收</button>
-                            </div>
-                        </div>
-                    </div>
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm flex items-center justify-between">
+                <div class="flex-1">
+                    <label class="text-[10px] font-black text-slate-400 block uppercase italic">Identity</label>
+                    <select id="currentUser" class="w-full font-black text-lg outline-none bg-transparent" onchange="updateUI()"></select>
+                </div>
+                <button id="btnLockUser" onclick="lockMyIdentity()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold text-sm">鎖定身份</button>
+                <div id="lockBadge" class="hidden bg-emerald-100 text-emerald-600 px-4 py-2 rounded-xl font-black text-xs">✓ 已鎖定</div>
+            </div>
+
+            <div class="bg-slate-900 text-white p-6 rounded-[2.5rem] flex justify-between items-end shadow-xl border-b-8 border-emerald-500">
+                <div>
+                    <p class="text-[10px] opacity-60 font-black mb-1 italic">Public Fund</p>
+                    <p id="fundBalance" class="text-4xl font-mono font-black text-yellow-400">$0</p>
+                    <p id="fundFormula" class="text-[10px] font-mono opacity-50 mt-1"></p>
+                </div>
+                <div class="text-right text-xs">
+                    <p class="opacity-50 font-bold uppercase mb-1">Manager</p>
+                    <p id="managerDisplay" class="font-bold text-indigo-300">---</p>
                 </div>
             </div>
 
-            <div id="expenseBox" class="p-6 bg-white rounded-[2rem] shadow-lg border-2 border-indigo-100">
-                <h2 class="font-black text-2xl text-slate-700 mb-5 flex items-center gap-2">
-                    <span class="bg-indigo-100 p-2 rounded-xl">🖊️</span> 新增消費
-                </h2>
+            <div id="depositBox" class="admin-hidden bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-6 space-y-4 shadow-inner">
+                <h3 class="font-black text-amber-800 text-sm">📥 登記公帳收入</h3>
+                <div class="flex gap-2">
+                    <input type="number" id="depAmount" class="w-full p-4 rounded-xl border-none text-center font-black bg-white shadow-sm" placeholder="金額 $">
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="addBulkDep()" class="bg-amber-500 text-white p-3 rounded-xl font-black text-xs shadow-md">全員各繳一份</button>
+                    <button onclick="addSingleDep()" class="bg-slate-800 text-white p-3 rounded-xl font-black text-xs shadow-md italic">單人補繳 (選上方選單)</button>
+                </div>
+            </div>
+
+            <div id="expenseFormBox" class="bg-white p-6 rounded-[2.5rem] shadow-lg border border-slate-100 relative">
+                <h2 class="font-black text-xl text-slate-800 mb-4">🖊️ 新增支出</h2>
                 <div class="space-y-4">
-                    <div class="flex gap-2">
-                        <input type="date" id="expDate" class="w-1/2 p-4 border-2 rounded-2xl font-bold bg-slate-50">
-                        <select id="expCategory" class="w-1/2 p-4 border-2 rounded-2xl font-bold text-center">
-                            <option>早餐</option><option>午餐</option><option>晚餐</option><option>點心</option>
-                            <option>宵夜</option><option>飲料</option><option>門票</option><option>交通</option>
-                            <option>娛樂</option><option selected>其他</option>
-                        </select>
-                    </div>
-                    <input type="text" id="expDesc" placeholder="項目內容 (如：計程車)" class="w-full p-4 border-2 rounded-2xl font-bold">
-                    <div class="flex gap-2">
-                        <div class="w-1/2 relative">
-                            <span class="absolute left-3 top-4 text-slate-400 font-bold">$</span>
-                            <input type="number" id="expAmount" placeholder="金額" class="w-full p-4 pl-8 border-2 rounded-2xl font-mono text-2xl font-black text-indigo-600">
-                        </div>
-                        <select id="expPayer" class="w-1/2 p-4 border-2 rounded-2xl font-bold text-indigo-700 bg-indigo-50"></select>
-                    </div>
-                    
-                    <p class="text-sm font-bold text-slate-400 mt-2">哪些人分擔？ (預設全選)</p>
-                    <div id="involvedChecks" class="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></div>
-                    
-                    <button id="btnSubmitExp" onclick="addExpense()" class="w-full bg-slate-300 text-white p-5 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all mt-2">
-                        請先選擇身分
-                    </button>
+                    <div class="flex gap-2"><input type="date" id="expDate" class="w-1/2 p-4 bg-slate-100 rounded-2xl font-bold border-none"><select id="expCategory" class="w-1/2 p-4 bg-slate-100 rounded-2xl font-bold border-none"></select></div>
+                    <input type="text" id="expDesc" placeholder="項目內容" class="w-full p-4 bg-slate-100 rounded-2xl font-bold border-none">
+                    <div class="flex gap-2"><input type="number" id="expAmount" placeholder="金額" class="w-1/2 p-4 bg-indigo-50 rounded-2xl font-black text-indigo-700 text-2xl border-none"><select id="expPayer" class="w-1/2 p-4 bg-indigo-50 rounded-2xl font-bold border-none text-indigo-700"></select></div>
+                    <div id="involvedGrid" class="grid grid-cols-2 gap-2"></div>
+                    <button id="submitBtn" onclick="saveExpense()" class="w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-xl shadow-xl active:scale-95">確認儲存</button>
                 </div>
             </div>
 
-            <div class="space-y-6">
-                <div>
-                    <div class="flex justify-between items-end px-2 mb-2">
-                        <h3 class="font-black text-xl text-orange-600">📙 公帳支出明細</h3>
-                        <span id="subtotalFund" class="text-sm font-mono bg-orange-100 px-3 py-1 rounded-full text-orange-700 font-bold"></span>
-                    </div>
-                    <div id="listFund" class="space-y-3"></div>
-                </div>
-
-                <div>
-                    <div class="flex justify-between items-end px-2 mb-2">
-                        <h3 class="font-black text-xl text-blue-600">📘 個人代墊明細</h3>
-                        <span id="subtotalIndiv" class="text-sm font-mono bg-blue-100 px-3 py-1 rounded-full text-blue-700 font-bold"></span>
-                    </div>
-                    <div id="listIndiv" class="space-y-3"></div>
-                </div>
-
-                <div class="bg-emerald-50 rounded-3xl p-4 border border-emerald-200">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-black text-emerald-800">💵 預繳紀錄</h3>
-                        <span id="totalDeposit" class="font-mono font-bold text-emerald-600"></span>
-                    </div>
-                    <div id="listDeposit" class="space-y-2"></div>
+            <div class="space-y-8">
+                <section><h2 class="section-title text-xl text-slate-800 mb-4 ml-2">💰 支出明細</h2><div id="publicTimeline" class="space-y-4"></div><div id="personalTimeline" class="space-y-4 mt-4"></div></section>
+                <div class="bg-indigo-900 p-8 rounded-[3rem] shadow-2xl text-white">
+                    <div id="balanceAudit" class="bg-white/10 rounded-2xl p-4 mb-6 text-[11px] font-mono"></div>
+                    <div id="splitResult" class="space-y-3 mb-8"></div>
+                    <button onclick="exportCSV()" class="w-full bg-white/10 p-3 rounded-xl text-xs font-bold">下載 CSV 報表</button>
+                    <button id="adminClearBtn" onclick="clearAll()" class="admin-hidden w-full mt-4 text-rose-500 font-black text-[10px] uppercase">💣 Delete Data</button>
                 </div>
             </div>
 
-            <div class="p-8 bg-white rounded-[2.5rem] border-4 border-emerald-500 shadow-2xl">
-                <h2 class="font-black text-emerald-800 text-2xl mb-6 text-center underline decoration-emerald-200 underline-offset-8">🏁 結算對帳建議</h2>
-                <div id="splitResult" class="space-y-4"></div>
-                
-                <div class="mt-10 grid grid-cols-2 gap-4">
-                    <button onclick="exportCSV()" class="bg-slate-100 p-4 rounded-2xl font-bold text-slate-600 border active:bg-slate-200">📥 報表</button>
-                    <button onclick="clearAllData()" class="bg-rose-50 text-rose-600 p-4 rounded-2xl font-bold border border-rose-100 active:bg-rose-200">⚠️ 清空</button>
+            <details id="adminMemberSettings" class="admin-hidden bg-slate-200 rounded-2xl overflow-hidden text-slate-600">
+                <summary class="p-4 font-bold cursor-pointer text-center text-sm">⚙️ 成員與安全設定</summary>
+                <div class="p-6 bg-white space-y-4">
+                    <div><label class="text-xs font-bold text-slate-400">成員名單 (逗號隔開)：</label><input type="text" id="memberInput" class="w-full p-3 border-2 rounded-xl font-bold mt-1" onchange="pushData()"></div>
+                    <div><label class="text-xs font-bold text-slate-400">管理員身分確認密碼：</label><input type="text" id="managerPassInput" class="w-full p-3 border-2 rounded-xl font-bold mt-1" onchange="pushData()"></div>
                 </div>
-            </div>
-            
-            <p class="text-center text-[10px] text-slate-300 pb-10">旅遊分帳助手 v24 專業手機版</p>
+            </details>
         </div>
     </div>
 
     <script>
-        // --- Firebase 設定 (沿用您的設定) ---
         const firebaseConfig = { databaseURL: "https://project-2641836624074325409-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        let members = [], expenses = [], deposits = [], manager = "", managerPass = "1234", roomId = "", roomPass = "", isSettled = false;
+        const emojis = { "早餐":"🍳", "午餐":"🍱", "晚餐":"🍽️", "點心":"🍰", "宵夜":"🍜", "飲料":"🥤", "交通":"🚗", "住宿":"🏨", "門票":"🎫", "購物":"🛍️", "娛樂":"🎡", "其他":"🏷️" };
 
-        let members = [], expenses = [], deposits = [], roomId = "", roomPass = "", manager = "";
-        const catEmoji = { "早餐":"🍳", "午餐":"🍱", "晚餐":"🍽️", "點心":"🍰", "宵夜":"🌙", "飲料":"🥤", "門票":"🎫", "交通":"🚗", "娛樂":"🎮", "其他":"🏷️" };
-        
-        window.onload = function() {
-            document.getElementById('expDate').valueAsDate = new Date();
-            const sid = localStorage.getItem('last_room_id');
-            if (sid) { document.getElementById('roomId').value = sid; document.getElementById('saveIdCheck').checked = true; }
-        };
-
-        function prepareNewLedger() {
-            const rid = 'trip-' + Math.random().toString(36).substr(2, 6);
-            document.getElementById('roomId').value = rid;
-            alert("新帳簿 ID: " + rid + "\n請記住這個 ID 或是勾選「記住 ID」");
-        }
-
-        function toggleCollapsible(cId, aId) {
-            document.getElementById(cId).classList.toggle('active');
-            document.getElementById(aId).classList.toggle('active');
-        }
-
-        function initSync() {
+        async function initSync(mode) {
             roomId = document.getElementById('roomId').value.trim();
             roomPass = document.getElementById('roomPass').value.trim();
-            if (!roomId || !roomPass) return alert("請輸入 ID 與暗號");
-            db.ref('rooms/' + roomId).on('value', (snap) => {
-                const data = snap.val();
-                if (data) {
-                    if (data.password && data.password !== roomPass) { alert("暗號錯誤！"); location.reload(); return; }
-                    if (document.getElementById('saveIdCheck').checked) localStorage.setItem('last_room_id', roomId);
-                    else localStorage.removeItem('last_room_id');
-                    members = data.members || []; expenses = data.expenses || []; deposits = data.deposits || []; manager = data.manager || "";
-                    document.getElementById('memberInput').value = members.join(', ');
-                    document.getElementById('mainUI').classList.remove('hidden');
-                    document.getElementById('loginBox').classList.add('hidden');
-                    document.getElementById('statusHeader').innerText = "✅ 已連線：" + roomId;
-                    document.getElementById('statusHeader').className = "text-center text-[10px] mb-2 font-bold text-emerald-500 uppercase tracking-widest";
-                    updateUI();
-                } else { db.ref('rooms/' + roomId).set({ password: roomPass }); }
+            if (!roomId || !roomPass) return alert("請填寫 ID 與暗號");
+
+            const snap = await db.ref('rooms/' + roomId).once('value');
+            const data = snap.val();
+
+            if (mode === 'create') {
+                if (data) return alert("❌ 此房間 ID 已存在，請換一個名字或改用「進入帳簿」。");
+                await db.ref('rooms/' + roomId).set({ password: roomPass, managerPass: "1234", isSettled: false });
+                alert("✅ 帳簿建立成功！");
+            } else {
+                if (!data) return alert("❌ 找不到此房間，若要開新房間請按「建立新帳簿」。");
+                if (data.password && data.password !== roomPass) return alert("❌ 暗號錯誤");
+            }
+
+            if (document.getElementById('rememberId').checked) localStorage.setItem('saved_room_id', roomId);
+            startApp();
+        }
+
+        function startApp() {
+            db.ref('rooms/' + roomId).on('value', snap => {
+                const d = snap.val(); if (!d) return;
+                members = d.members || []; expenses = d.expenses || []; deposits = d.deposits || [];
+                manager = d.manager || ""; managerPass = d.managerPass || "1234"; isSettled = d.isSettled || false;
+                document.getElementById('memberInput').value = members.join(', ');
+                document.getElementById('managerPassInput').value = managerPass;
+                document.getElementById('mainUI').classList.remove('hidden');
+                document.getElementById('loginSection').classList.add('hidden');
+                updateUI();
             });
-        }
-
-        function pushData() {
-            members = document.getElementById('memberInput').value.split(',').map(s => s.trim()).filter(s => s !== "");
-            manager = document.getElementById('fundManager').value;
-            db.ref('rooms/' + roomId).update({ members, expenses, deposits, manager });
-        }
-
-        function handleManagerChange() {
-            manager = document.getElementById('fundManager').value;
-            pushData();
         }
 
         function updateUI() {
-            const uSel = document.getElementById('currentUser'), currentVal = uSel.value;
-            let uOpts = `<option value="">⚠️ 請先點此選擇姓名</option>`;
-            uOpts += members.map(m => `<option value="${m}" ${m===currentVal?'selected':''}>我是 ${m}</option>`).join('');
-            uSel.innerHTML = uOpts;
-            
-            document.getElementById('fundManager').innerHTML = members.map(m => `<option value="${m}" ${m===manager?'selected':''}>${m}</option>`).join('');
-            document.getElementById('depMember').innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
-            checkAuth(); renderLists(); calculate();
-        }
-
-        function checkAuth() {
-            const u = document.getElementById('currentUser').value, m = document.getElementById('fundManager').value;
-            const uSel = document.getElementById('currentUser');
-            const btnSubmit = document.getElementById('btnSubmitExp');
-            
-            if (!u) {
-                uSel.classList.add('user-warn');
-                btnSubmit.disabled = true;
-                btnSubmit.innerText = "請先選擇身分";
-                btnSubmit.className = "w-full bg-slate-300 text-white p-5 rounded-2xl font-black text-2xl shadow-md cursor-not-allowed";
+            const uSel = document.getElementById('currentUser'), curU = uSel.value;
+            uSel.innerHTML = `<option value="">-- 我是誰 --</option>` + members.map(m => `<option value="${m}" ${m===curU?'selected':''}>${m}</option>`).join('');
+            const lockedUser = localStorage.getItem(`locked_user_${roomId}`);
+            if (lockedUser) {
+                uSel.value = lockedUser; uSel.disabled = true; uSel.classList.add('is-locked');
+                document.getElementById('btnLockUser').classList.add('hidden');
+                document.getElementById('lockBadge').classList.remove('hidden');
             } else {
-                uSel.classList.remove('user-warn');
-                btnSubmit.disabled = false;
-                btnSubmit.innerText = "確認新增紀錄";
-                btnSubmit.className = "w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all";
+                uSel.disabled = false; uSel.classList.remove('is-locked');
+                document.getElementById('btnLockUser').classList.remove('hidden');
+                document.getElementById('lockBadge').classList.add('hidden');
             }
-
-            const isM = (u === m && m !== "");
-            const btnB = document.getElementById('btnBulk'), btnS = document.getElementById('btnSingle'), depS = document.getElementById('depositSection'), hint = document.getElementById('lockHint');
-            
-            if (isM) {
-                depS.classList.remove('opacity-60'); btnB.disabled = false; btnS.disabled = false;
-                btnB.className = "w-full bg-orange-500 text-white p-4 rounded-2xl font-black shadow"; btnS.className = "bg-slate-700 text-white px-5 py-3 rounded-xl font-bold";
-                hint.innerText = "🔓 管理員已授權"; hint.className = "text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded font-bold";
-            } else {
-                depS.classList.add('opacity-60'); btnB.disabled = true; btnS.disabled = true;
-                btnB.className = "w-full bg-slate-300 text-white p-4 rounded-2xl font-black cursor-not-allowed"; btnS.className = "bg-slate-300 text-white px-5 py-3 rounded-xl font-bold cursor-not-allowed";
-                hint.innerText = u ? "限管理員操作" : "身分未確認"; hint.className = "text-[10px] bg-rose-100 text-rose-500 px-2 py-1 rounded font-bold";
-            }
-
-            const pSel = document.getElementById('expPayer'), pVal = pSel.value;
-            let opts = isM ? `<option value="公帳">✨ 公帳支付</option>` : `<option value="" disabled>🚫 公帳 (限管理員)</option>`;
-            opts += members.map(mem => `<option value="${mem}" ${mem===pVal?'selected':''}>👤 ${mem} 代墊</option>`).join('');
-            pSel.innerHTML = opts;
-            
-            const inv = document.getElementById('involvedChecks');
-            if (inv.innerHTML === "") inv.innerHTML = members.map(mem => `<label class="flex items-center gap-3 cursor-pointer bg-white px-4 py-3 rounded-2xl border-2 active:bg-indigo-50"><input type="checkbox" checked value="${mem}" class="m-check w-6 h-6 accent-indigo-600"> <span class="font-black text-lg text-slate-700">${mem}</span></label>`).join('');
+            const isAdmin = (lockedUser === manager || !manager);
+            const adminZones = document.querySelectorAll('.admin-hidden');
+            adminZones.forEach(el => el.classList.toggle('admin-hidden', !isAdmin));
+            document.getElementById('managerDisplay').innerText = manager || "未設定";
+            document.getElementById('btnToggleSettle').innerText = isSettled ? "🔒 已封存" : "🏁 啟動總結算";
+            updateForm(); calculate();
+            renderTimeline('publicTimeline', e => e.paid_by === "公帳");
+            renderTimeline('personalTimeline', e => e.paid_by !== "公帳");
         }
 
-        function addBulkDeposit() {
-            const a = parseFloat(document.getElementById('depAmount').value);
-            if (isNaN(a) || a <= 0) return alert("請輸入正確金額");
-            if(confirm(`全員收錢：${members.length} 人各收 $${a}？`)) {
-                members.forEach(m => { deposits.push({ id: Date.now() + Math.random(), from: m, amount: a, date: new Date().toISOString().split('T')[0] }); });
-                document.getElementById('depAmount').value = ""; pushData();
-            }
+        function lockMyIdentity() {
+            const user = document.getElementById('currentUser').value;
+            if (!user) return alert("請先選擇姓名");
+            if (!manager) {
+                if (confirm(`成為管理員？`)) { manager = user; completeLock(user); }
+            } else if (user === manager) {
+                if (prompt("輸入管理員密碼：") === managerPass) completeLock(user);
+                else alert("密碼錯誤");
+            } else { if (confirm(`鎖定為 ${user}？`)) completeLock(user); }
         }
 
-        function addSingleDeposit() {
-            const f = document.getElementById('depMember').value, a = parseFloat(document.getElementById('depAmount').value);
-            if (isNaN(a) || a <= 0) return alert("請輸入正確金額");
-            deposits.push({ id: Date.now(), from: f, amount: a, date: new Date().toISOString().split('T')[0] });
-            document.getElementById('depAmount').value = ""; pushData();
+        function completeLock(user) { localStorage.setItem(`locked_user_${roomId}`, user); pushData(); updateUI(); }
+        function logout() { localStorage.removeItem(`locked_user_${roomId}`); location.reload(); }
+        function pushData() {
+            const input = document.getElementById('memberInput').value;
+            members = input.split(',').map(s => s.trim()).filter(s => s !== "");
+            managerPass = document.getElementById('managerPassInput').value.trim();
+            db.ref('rooms/' + roomId).update({ password: roomPass, members, expenses, deposits, manager, managerPass, isSettled });
         }
-
-        function addExpense() {
-            const u = document.getElementById('currentUser').value;
-            if (!u) return alert("請先選擇您的姓名！");
-            const d = document.getElementById('expDate').value, c = document.getElementById('expCategory').value, de = document.getElementById('expDesc').value, a = parseFloat(document.getElementById('expAmount').value), p = document.getElementById('expPayer').value, i = Array.from(document.querySelectorAll('.m-check:checked')).map(el => el.value);
-            if (!p || isNaN(a) || !de || i.length === 0) return alert("資料不完整");
-            expenses.push({ id: Date.now(), date: d, category: c, desc: de, amount: a, paid_by: p, inv: i });
-            expenses.sort((a,b) => new Date(a.date) - new Date(b.date));
-            pushData(); document.getElementById('expDesc').value = ""; document.getElementById('expAmount').value = "";
-        }
-
-        function renderLists() {
-            const fBox = document.getElementById('listFund'), iBox = document.getElementById('listIndiv'), dBox = document.getElementById('listDeposit');
-            let sF = 0, sI = 0, sD = 0;
-            
-            const cardHTML = (e) => `
-                <div class="expense-card group relative">
-                    <button onclick="deleteExp(${e.id})" class="absolute top-2 right-2 text-rose-300 p-2 text-xl">✕</button>
-                    <div class="flex items-start gap-3">
-                        <div class="text-3xl bg-slate-100 p-3 rounded-2xl">${catEmoji[e.category]||'🏷️'}</div>
-                        <div class="flex-1">
-                            <div class="font-black text-xl text-slate-800">${e.desc}</div>
-                            <div class="text-sm text-slate-500 font-bold">${e.date} · ${e.paid_by=='公帳'?'公帳支付':e.paid_by+'代墊'}</div>
-                            <div class="text-xs mt-2 text-indigo-500 font-bold bg-indigo-50 inline-block px-2 py-1 rounded">分擔: ${e.inv.join(', ')}</div>
-                        </div>
-                        <div class="text-2xl font-black font-mono text-indigo-700">$${Math.round(e.amount)}</div>
-                    </div>
-                </div>`;
-
-            fBox.innerHTML = expenses.filter(e => e.paid_by === '公帳').map(e => { sF += e.amount; return cardHTML(e); }).join('') || "<p class='text-center p-10 text-slate-300 font-bold'>無公帳紀錄</p>";
-            iBox.innerHTML = expenses.filter(e => e.paid_by !== '公帳').map(e => { sI += e.amount; return cardHTML(e); }).join('') || "<p class='text-center p-10 text-slate-300 font-bold'>無代墊紀錄</p>";
-            
-            const groupedD = {};
-            deposits.forEach(d => {
-                const k = d.date + "_" + d.amount;
-                if (!groupedD[k]) groupedD[k] = { date: d.date, amount: d.amount, people: [], ids: [] };
-                groupedD[k].people.push(d.from); groupedD[k].ids.push(d.id); sD += d.amount;
-            });
-            dBox.innerHTML = Object.values(groupedD).map(g => `
-                <div class="bg-white p-3 rounded-xl flex justify-between items-center text-sm shadow-sm">
-                    <div class="font-bold"><span class="text-slate-400 font-mono text-xs">${g.date}</span> <span class="text-emerald-600">${g.people.length === members.length ? '全員' : g.people.length+'人'}預繳</span> <span class="font-mono">$${g.amount}</span></div>
-                    <button onclick="deleteBulkDep('${g.ids.join(',')}')" class="text-rose-300 px-2">✕</button>
-                </div>`).join('');
-
-            document.getElementById('totalDeposit').innerText = `總收 $${Math.round(sD)}`;
-            document.getElementById('fundSpent').innerText = `$${Math.round(sF)}`;
-            document.getElementById('fundBalance').innerText = `$${Math.round(sD - sF)}`;
-            document.getElementById('subtotalFund').innerText = `小計 $${Math.round(sF)}`;
-            document.getElementById('subtotalIndiv').innerText = `小計 $${Math.round(sI)}`;
-        }
-
-        function deleteExp(id) { if(confirm("確定刪除這筆消費？")) { expenses = expenses.filter(e => e.id !== id); pushData(); } }
-        function deleteBulkDep(idsStr) { if(confirm("確定刪除這筆繳費紀錄？")) { const ids = idsStr.split(',').map(Number); deposits = deposits.filter(d => !ids.includes(d.id)); pushData(); } }
 
         function calculate() {
             if (members.length === 0) return;
-            const b = {}; members.forEach(m => b[m] = 0);
-            let ti = 0, to = 0;
-            deposits.forEach(d => { if(b.hasOwnProperty(d.from)) { ti += d.amount; b[d.from] += d.amount; } });
-            expenses.forEach(e => {
-                const p = e.amount / e.inv.length;
-                if (e.paid_by === "公帳") { to += e.amount; e.inv.forEach(m => { if(b.hasOwnProperty(m)) b[m] -= p; }); }
-                else { if (b.hasOwnProperty(e.paid_by)) b[e.paid_by] += e.amount; e.inv.forEach(m => { if(b.hasOwnProperty(m)) b[m] -= p; }); }
-            });
-            const r = ti - to; if (manager && b.hasOwnProperty(manager)) b[manager] -= r;
+            const paid = {}, consumed = {}, bal = {};
+            members.forEach(m => { paid[m] = 0; consumed[m] = 0; bal[m] = 0; });
+            let totalFSpent = 0, totalDep = 0;
+            deposits.forEach(d => { if (d.from === "全員") { members.forEach(m => paid[m] += d.amount); totalDep += d.amount * members.length; } else { paid[d.from] += d.amount; totalDep += d.amount; } });
+            expenses.forEach(e => { const per = e.amount / e.inv.length; if (e.paid_by === "公帳") totalFSpent += e.amount; else paid[e.paid_by] += e.amount; e.inv.forEach(m => consumed[m] += per); });
+            document.getElementById('fundBalance').innerText = `$${Math.round(totalDep - totalFSpent)}`;
+            document.getElementById('fundFormula').innerText = `入 $${Math.round(totalDep)} - 出 $${Math.round(totalFSpent)}`;
+            members.forEach(m => bal[m] = paid[m] - consumed[m]);
+            if (manager) bal[manager] -= (totalDep - totalFSpent);
+            document.getElementById('balanceAudit').innerHTML = members.map(m => `<div class="flex justify-between"><span>${m}</span><span>${Math.round(bal[m])}</span></div>`).join('');
             let cr = [], dbts = [], splits = [];
-            Object.keys(b).forEach(n => { let v = b[n]; if (v > 0.5) cr.push({n, v}); else if (v < -0.5) dbts.push({n, v: Math.abs(v)}); });
-            let i=0, j=0;
-            while(i<dbts.length && j<cr.length) {
-                let a = Math.min(dbts[i].v, cr[j].v); 
-                splits.push({f: dbts[i].n, t: cr[j].n, a: Math.round(a)});
-                dbts[i].v -= a; cr[j].v -= a; if(dbts[i].v <= 0.5) i++; if(cr[j].v <= 0.5) j++;
+            Object.keys(bal).forEach(m => { if (bal[m] > 0.5) cr.push({ n: m, v: bal[m] }); else if (bal[m] < -0.5) dbts.push({ n: m, v: Math.abs(bal[m]) }); });
+            let i = 0, j = 0;
+            while (i < dbts.length && j < cr.length) {
+                let a = Math.min(dbts[i].v, cr[j].v);
+                splits.push(`<div class="flex justify-between bg-white/10 p-4 rounded-2xl"><span>${dbts[i].n} ➜ ${cr[j].n}</span><span class="text-yellow-300 font-black">$${Math.round(a)}</span></div>`);
+                dbts[i].v -= a; cr[j].v -= a; if (dbts[i].v <= 0.5) i++; if (cr[j].v <= 0.5) j++;
             }
-            document.getElementById('splitResult').innerHTML = splits.map(s => `
-                <div class="bg-emerald-50 p-5 rounded-[1.5rem] border-2 border-emerald-200 flex justify-between items-center shadow-sm">
-                    <span class="text-lg font-bold"><b>${s.f}</b> ➔ <b>${s.t}</b></span>
-                    <span class="text-rose-600 font-black text-2xl font-mono">$${s.a}</span>
-                </div>`).join('') || "<p class='text-center text-slate-400 font-black py-10 w-full'>🎉 帳目已清，不相欠！</p>";
+            document.getElementById('splitResult').innerHTML = splits.join('') || "<p class='text-center opacity-30 italic'>✨ 已清帳</p>";
         }
 
-        function exportCSV() {
-            let csv = "\ufeff日期,項目,金額,付款人,參與者\n";
-            expenses.forEach(e => csv += `${e.date},${e.desc},${e.amount},${e.paid_by},"${e.inv.join('/')}"\n`);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-            a.download = `旅遊分帳_${roomId}.csv`; a.click();
+        function updateForm() {
+            const user = document.getElementById('currentUser').value;
+            document.getElementById('expPayer').innerHTML = (user === manager ? `<option value="公帳">公帳</option>` : `<option disabled>公帳(限管)</option>`) + members.map(m => `<option value="${m}">${m} 代墊</option>`).join('');
+            const grid = document.getElementById('involvedGrid');
+            if (grid.innerHTML === "") grid.innerHTML = members.map(m => `<label class="flex items-center gap-2 p-3 bg-slate-50 rounded-2xl"><input type="checkbox" checked value="${m}" class="m-check"> ${m}</label>`).join('');
+            const catSel = document.getElementById('expCategory');
+            if (catSel.innerHTML === "") catSel.innerHTML = Object.keys(emojis).map(k => `<option value="${k}">${emojis[k]} ${k}</option>`).join('');
         }
-        function clearAllData() { if (confirm("這將永久清除所有紀錄，確定？")) { db.ref('rooms/' + roomId).remove(); location.reload(); } }
+
+        function saveExpense() {
+            if (isSettled) return alert("已封存");
+            const data = { id: Date.now(), date: document.getElementById('expDate').value, category: document.getElementById('expCategory').value, desc: document.getElementById('expDesc').value, amount: parseFloat(document.getElementById('expAmount').value), paid_by: document.getElementById('expPayer').value, inv: Array.from(document.querySelectorAll('.m-check:checked')).map(el => el.value) };
+            if (!data.desc || isNaN(data.amount)) return alert("請填完整");
+            expenses.push(data); pushData();
+        }
+
+        function addBulkDep() { const amt = parseFloat(document.getElementById('depAmount').value); if(amt) { deposits.push({id:Date.now(), from:"全員", amount:amt, date:new Date().toISOString().split('T')[0]}); pushData(); } }
+        function addSingleDep() { const user = document.getElementById('currentUser').value; const amt = parseFloat(document.getElementById('depAmount').value); if(user && amt) { deposits.push({id:Date.now(), from:user, amount:amt, date:new Date().toISOString().split('T')[0]}); pushData(); } }
+        function renderTimeline(id, filter) {
+            const c = document.getElementById(id); c.innerHTML = "";
+            expenses.filter(filter).forEach(e => c.innerHTML += `<div class="bg-white p-5 rounded-[2rem] shadow-sm flex gap-4 items-center">
+                <div class="text-3xl">${emojis[e.category]||'🏷️'}</div>
+                <div class="flex-1"><div class="font-black text-slate-800">${e.desc}</div><div class="text-[10px] text-slate-400 font-bold">${e.paid_by}</div></div>
+                <div class="text-right"><div class="font-black text-lg">$${Math.round(e.amount)}</div><button onclick="delExp(${e.id})" class="text-[10px] text-rose-400">刪除</button></div>
+            </div>`);
+        }
+        function delExp(id) { if(!isSettled && confirm("刪除？")) { expenses = expenses.filter(x => x.id !== id); pushData(); } }
+        function toggleSettlement() { if(confirm("切換狀態？")) { isSettled = !isSettled; pushData(); } }
+        function clearAll() { if(confirm("重置所有資料？")) db.ref('rooms/'+roomId).remove().then(()=>location.reload()); }
+        function exportCSV() { let csv = "\ufeff日期,項目,金額,支付者\n"; expenses.forEach(e => csv += `${e.date},${e.desc},${e.amount},${e.paid_by}\n`); const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="report.csv"; a.click(); }
+        window.onload = () => { document.getElementById('expDate').value = new Date().toISOString().split('T')[0]; const sid = localStorage.getItem('saved_room_id'); if(sid) document.getElementById('roomId').value = sid; };
     </script>
 </body>
 </html>
