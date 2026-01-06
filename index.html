@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳助手 v48.0</title>
+    <title>旅遊分帳助手 v50.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -19,16 +19,16 @@
         summary { list-style: none; cursor: pointer; outline: none; }
         summary::-webkit-details-marker { display: none; }
         .dropdown-card { background: white; border-radius: 1.25rem; overflow: hidden; border: 1px solid #e2e8f0; margin-bottom: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .dropdown-summary { padding: 1rem; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+        .dropdown-summary { padding: 1.25rem 1rem; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
         .dropdown-content { padding: 0 1rem 1rem 1rem; }
         .compact-input { padding: 0.75rem !important; font-size: 0.875rem !important; border-radius: 1rem !important; }
         
-        .date-divider { position: relative; text-align: center; margin: 15px 0 10px 0; }
+        .date-divider { position: relative; text-align: center; margin: 20px 0 12px 0; }
         .date-divider::before { content: ""; position: absolute; left: 0; top: 50%; width: 100%; border-bottom: 1px solid #e2e8f0; }
-        .date-label { position: relative; background: #f8fafc; padding: 0 10px; font-size: 10px; font-weight: 900; color: #94a3b8; letter-spacing: 1px; }
+        .date-label { position: relative; background: #f8fafc; padding: 0 12px; font-size: 12px; font-weight: 900; color: #94a3b8; letter-spacing: 1px; }
         
-        .guide-step { background: #f0f4ff; border-radius: 12px; padding: 10px; margin-top: 8px; border-left: 4px solid #6366f1; }
-        .btn-action { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 8px; margin-left: 4px; }
+        .guide-step { background: #f0f4ff; border-radius: 12px; padding: 15px; margin-top: 10px; border-left: 5px solid #6366f1; }
+        .btn-action { font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 8px; margin-left: 4px; }
     </style>
 </head>
 <body class="p-3 pb-24">
@@ -53,24 +53,19 @@
             </div>
 
             <details class="dropdown-card border-l-8 border-sky-400">
-                <summary class="dropdown-summary text-sky-800 text-sm bg-sky-50"><span>🚀 完整操作指南 (新開帳簿必看)</span><span>⊕</span></summary>
-                <div class="dropdown-content text-[11px] text-slate-600 space-y-4 pt-4 leading-relaxed">
+                <summary class="dropdown-summary text-sky-800 text-base bg-sky-50"><span>🚀 完整操作指南 (新開帳簿必看)</span><span>⊕</span></summary>
+                <div class="dropdown-content text-[13px] text-slate-700 space-y-4 pt-4 leading-relaxed">
                     <div class="guide-step">
-                        <b class="text-indigo-700 block mb-1">🆕 如何建立新帳簿？</b>
+                        <b class="text-indigo-700 text-sm block mb-1">🆕 如何建立新帳簿？</b>
                         1. 在上方輸入自訂的 <b>房間 ID</b> 與 <b>暗號</b>。<br>
                         2. 點擊「建立全新房間」按鈕。<br>
-                        3. 進入後，在最下方<b>「管理員設定專區」</b>設定成員名字。<br>
+                        3. 進入後，在最下方<b>「⚙️ 管理員設定專區」</b>設定成員名字。<br>
                         4. 點擊上方<b>「鎖定身份」</b>選擇自己，即成為管理員。
                     </div>
                     <div class="guide-step">
-                        <b class="text-indigo-700 block mb-1">👥 團員如何加入？</b>
+                        <b class="text-indigo-700 text-sm block mb-1">👥 團員如何加入？</b>
                         1. 輸入管理員建立的 <b>房間 ID</b> 與 <b>暗號</b>，點擊「進入帳簿」。<br>
                         2. 找到自己的名字並點擊<b>「鎖定身份」</b>，即可開始記帳。
-                    </div>
-                    <div class="guide-step">
-                        <b class="text-amber-700 block mb-1">💰 權限說明</b>
-                        • <b>管理員</b>：管理公帳收入/支出、設定名單、啟動最終結算。<br>
-                        • <b>一般團員</b>：登記個人代墊項目，可修改自己有關的帳目。
                     </div>
                 </div>
             </details>
@@ -93,7 +88,7 @@
             </div>
 
             <details id="depositBox" class="admin-hidden dropdown-card border-l-8 border-amber-400">
-                <summary class="dropdown-summary text-amber-800 text-sm">
+                <summary class="dropdown-summary text-amber-800 text-base">
                     <span>📥 登記公帳收入 (管理員)</span>
                     <span id="depEditTag" class="hidden text-[10px] bg-rose-500 text-white px-2 rounded-full">編輯中</span>
                     <span>⊕</span>
@@ -139,15 +134,15 @@
             </div>
 
             <details class="dropdown-card border-l-8 border-amber-200">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>📒 公帳收入明細</span><span>▼</span></summary>
+                <summary class="dropdown-summary text-slate-700 text-base"><span>📒 公帳收入明細</span><span>▼</span></summary>
                 <div id="incomeTimeline" class="dropdown-content space-y-2"></div>
             </details>
             <details class="dropdown-card border-l-8 border-emerald-400">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>💰 公帳支付明細表</span><span>▼</span></summary>
+                <summary class="dropdown-summary text-slate-700 text-base"><span>💰 公帳支付明細表</span><span>▼</span></summary>
                 <div id="publicTimeline" class="dropdown-content space-y-2"></div>
             </details>
             <details class="dropdown-card border-l-8 border-indigo-400">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>👤 個人代墊明細表</span><span>▼</span></summary>
+                <summary class="dropdown-summary text-slate-700 text-base"><span>👤 個人代墊明細表</span><span>▼</span></summary>
                 <div id="personalTimeline" class="dropdown-content space-y-2"></div>
             </details>
 
@@ -166,7 +161,7 @@
             </details>
 
             <details id="adminMemberSettings" class="admin-hidden dropdown-card border-l-8 border-slate-300">
-                <summary class="dropdown-summary text-slate-500 text-xs"><span>⚙️ 管理員設定專區</span><span>▼</span></summary>
+                <summary class="dropdown-summary text-slate-600 text-base"><span>⚙️ 管理員設定專區</span><span>▼</span></summary>
                 <div class="dropdown-content space-y-4 pt-2">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 block mb-1">成員清單 (逗號隔開)</label>
@@ -183,14 +178,14 @@
     </div>
 
     <script>
-        // --- 核心變數 ---
+        // --- 核心變數與初始化 ---
         const firebaseConfig = { databaseURL: "https://project-2641836624074325409-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         let members = [], expenses = [], deposits = [], manager = "", managerPass = "1234", roomId = "", roomPass = "", editingId = null, editingDepId = null, isSettled = false;
         const emojis = { "早餐":"🍳", "午餐":"🍱", "晚餐":"🍽️", "點心":"🍰", "宵夜":"🍜", "飲料":"🥤", "交通":"🚗", "住宿":"🏨", "門票":"🎫", "購物":"🛍️", "娛樂":"🎡", "其他":"🏷️" };
 
-        // --- 登入邏輯 ---
+        // --- 登入同步 (與原始版本一致) ---
         async function handleAuth(mode) {
             roomId = document.getElementById('roomId').value.trim();
             roomPass = document.getElementById('roomPass').value.trim();
@@ -222,6 +217,7 @@
             });
         }
 
+        // --- 介面更新與渲染 (字體加大落點) ---
         function updateUI() {
             const uSel = document.getElementById('currentUser'), curU = uSel.value;
             uSel.innerHTML = `<option value="">-- 我是 --</option>` + members.map(m => `<option value="${m}" ${m===curU?'selected':''}>${m}</option>`).join('');
@@ -254,30 +250,28 @@
             calculate();
         }
 
-        // --- 渲染邏輯 (按日期群組) ---
         function renderTimeline(id, filter) {
             const container = document.getElementById(id), user = localStorage.getItem(`locked_user_${roomId}`);
             container.innerHTML = "";
             const filtered = expenses.filter(filter).sort((a,b) => new Date(b.date) - new Date(a.date));
-            if (!filtered.length) { container.innerHTML = "<div class='text-center py-4 text-[10px] text-slate-300 italic'>尚無資料</div>"; return; }
-            
+            if (!filtered.length) { container.innerHTML = "<div class='text-center py-4 text-[12px] text-slate-300 italic'>尚無資料</div>"; return; }
             const grouped = filtered.reduce((acc, obj) => { (acc[obj.date] = acc[obj.date] || []).push(obj); return acc; }, {});
-            
             Object.keys(grouped).forEach(date => {
                 container.innerHTML += `<div class="date-divider"><span class="date-label">${date}</span></div>`;
                 grouped[date].forEach(e => {
                     const isF = e.paid_by === "公帳";
                     const canEdit = !isSettled && (isF ? (user === manager) : (user === manager || user === e.paid_by || e.inv.includes(user)));
+                    // 這裡加大文字：描述(text-sm), 詳細資訊(text-[11px]), 金額(text-base)
                     container.innerHTML += `
-                    <div class="bg-slate-50 p-2.5 rounded-xl flex items-center gap-3 border border-slate-100 mb-2">
-                        <div class="text-2xl">${emojis[e.category] || '🏷️'}</div>
+                    <div class="bg-slate-50 p-3 rounded-xl flex items-center gap-3 border border-slate-100 mb-2">
+                        <div class="text-3xl">${emojis[e.category] || '🏷️'}</div>
                         <div class="flex-1 min-w-0">
-                            <div class="font-black text-slate-800 text-[11px] truncate">${e.desc}</div>
-                            <div class="text-[8px] font-bold text-slate-400 mt-0.5">${isF ? '✨ 公帳' : '👤 代墊:' + e.paid_by} · 分攤: ${e.inv.length === members.length ? "全員" : e.inv.join(', ')}</div>
+                            <div class="font-black text-slate-800 text-sm truncate">${e.desc}</div>
+                            <div class="text-[11px] font-bold text-slate-400 mt-1">${isF ? '✨ 公帳支付' : '👤 代墊人:' + e.paid_by}<br>分攤: ${e.inv.length === members.length ? "全員" : e.inv.join(', ')}</div>
                         </div>
                         <div class="text-right">
-                            <div class="font-black text-sm text-slate-900">$${Math.round(e.amount)}</div>
-                            ${canEdit ? `<div class="mt-1 flex gap-1 justify-end"><button onclick="editExp(${e.id})" class="btn-action bg-indigo-100 text-indigo-600">編修</button><button onclick="delExp(${e.id})" class="btn-action bg-rose-100 text-rose-500">刪除</button></div>` : ''}
+                            <div class="font-black text-base text-slate-900">$${Math.round(e.amount)}</div>
+                            ${canEdit ? `<div class="mt-2 flex gap-1 justify-end"><button onclick="editExp(${e.id})" class="btn-action bg-indigo-100 text-indigo-600">編修</button><button onclick="delExp(${e.id})" class="btn-action bg-rose-100 text-rose-500">刪除</button></div>` : ''}
                         </div>
                     </div>`;
                 });
@@ -287,19 +281,17 @@
         function renderIncomeTimeline() {
             const container = document.getElementById('incomeTimeline'), user = localStorage.getItem(`locked_user_${roomId}`);
             container.innerHTML = "";
-            if (!deposits.length) { container.innerHTML = "<div class='text-center py-4 text-[10px] text-slate-300 italic'>尚無資料</div>"; return; }
-            
+            if (!deposits.length) { container.innerHTML = "<div class='text-center py-4 text-[12px] text-slate-300 italic'>尚無資料</div>"; return; }
             const grouped = deposits.sort((a,b) => new Date(b.date) - new Date(a.date)).reduce((acc, obj) => { (acc[obj.date] = acc[obj.date] || []).push(obj); return acc; }, {});
-            
             Object.keys(grouped).forEach(date => {
                 container.innerHTML += `<div class="date-divider"><span class="date-label">${date}</span></div>`;
                 grouped[date].forEach(d => {
                     const canEdit = !isSettled && (user === manager);
                     container.innerHTML += `
-                    <div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center text-[10px] mb-1 border border-amber-50">
-                        <div class="font-black text-slate-700">${d.from === "全員" ? '✨ 全員預繳' : '👤 ' + d.from + ' 補繳'}</div>
+                    <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center mb-1 border border-amber-50">
+                        <div class="font-black text-slate-700 text-sm">${d.from === "全員" ? '✨ 全員預繳' : '👤 ' + d.from + ' 補繳'}</div>
                         <div class="text-right">
-                            <div class="font-mono font-black text-amber-600">$${Math.round(d.amount)}</div>
+                            <div class="font-mono font-black text-amber-600 text-base">$${Math.round(d.amount)}</div>
                             ${canEdit ? `<div class="mt-1 flex gap-1 justify-end"><button onclick="editDep(${d.id})" class="btn-action bg-amber-100 text-amber-700">編修</button><button onclick="delDep('${d.id}')" class="btn-action bg-rose-100 text-rose-500">刪除</button></div>` : ''}
                         </div>
                     </div>`;
@@ -307,14 +299,14 @@
             });
         }
 
-        // --- 其餘核心功能 (同前版本) ---
+        // --- 核心操作邏輯 (維持不變) ---
         function updateForm() {
             const user = localStorage.getItem(`locked_user_${roomId}`), pSel = document.getElementById('expPayer');
             pSel.innerHTML = (user === manager ? `<option value="公帳">✨ 公帳支付</option>` : `<option value="" disabled>🚫 公帳 (限管理員)</option>`) + members.map(m => `<option value="${m}">${m} 代墊</option>`).join('');
             const grid = document.getElementById('involvedGrid');
             if (grid.innerHTML === "") grid.innerHTML = members.map(m => `<label class="flex items-center gap-1 p-2 bg-slate-50 rounded-xl border border-transparent has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50"><input type="checkbox" checked value="${m}" class="m-check w-3 h-3 accent-indigo-600"><span class="font-bold text-slate-700 text-[10px] truncate">${m}</span></label>`).join('');
             const catSel = document.getElementById('expCategory'); if (catSel.innerHTML === "") catSel.innerHTML = Object.keys(emojis).map(k => `<option value="${k}">${emojis[k]} ${k}</option>`).join('');
-            const depM = document.getElementById('depMember'); depM.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
+            const depM = document.getElementById('depMember'); depM.innerHTML = members.map(m => `<option value="${m}">${m}填寫</option>`).join('');
         }
 
         function saveExpense() {
@@ -325,6 +317,8 @@
             resetForm(); pushData();
         }
 
+        function addBulkDep() { const amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value; if(isNaN(amt)||!date) return alert("填寫金額與日期"); deposits.push({id: Date.now(), date, amount: amt, from: "全員"}); pushData(); }
+        function addSingleDep() { const amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value, m = document.getElementById('depMember').value; if(isNaN(amt)||!date||!m) return alert("資料不全"); deposits.push({id: Date.now(), date, amount: amt, from: m}); pushData(); }
         function editExp(id) { const e = expenses.find(x => x.id === id); editingId = id; document.getElementById('formTitle').querySelector('span').innerText = "📝 編輯中..."; document.getElementById('cancelEdit').classList.remove('hidden'); document.getElementById('expDate').value = e.date; document.getElementById('expDesc').value = e.desc; document.getElementById('expAmount').value = e.amount; document.getElementById('expCategory').value = e.category; document.getElementById('expPayer').value = e.paid_by; document.querySelectorAll('.m-check').forEach(ck => ck.checked = e.inv.includes(ck.value)); window.scrollTo({ top: 100, behavior: 'smooth' }); }
         function editDep(id) { const d = deposits.find(x => x.id === id); editingDepId = id; document.getElementById('depDate').value = d.date; document.getElementById('depAmount').value = d.amount; document.getElementById('depEditTag').classList.remove('hidden'); document.getElementById('depNormalBtns').classList.add('hidden'); document.getElementById('depEditBtns').classList.remove('hidden'); document.getElementById('depositBox').open = true; }
         function saveDepEdit() { const idx = deposits.findIndex(x => x.id === editingDepId); deposits[idx].date = document.getElementById('depDate').value; deposits[idx].amount = parseFloat(document.getElementById('depAmount').value); pushData(); resetDepForm(); }
