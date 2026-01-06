@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳助手 v46.0</title>
+    <title>旅遊分帳助手 v46.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -23,6 +23,9 @@
         .dropdown-card { background: white; border-radius: 1.25rem; overflow: hidden; border: 1px solid #e2e8f0; margin-bottom: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .dropdown-summary { padding: 1rem; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
         .dropdown-content { padding: 0 1rem 1rem 1rem; }
+
+        /* 日期分群樣式 */
+        .date-group-header { font-size: 0.65rem; font-weight: 900; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 99px; display: inline-block; margin: 10px 0 5px 0; letter-spacing: 0.05em; }
     </style>
 </head>
 <body class="p-3 pb-24">
@@ -41,25 +44,9 @@
                         <input type="checkbox" id="rememberId" class="w-5 h-5 accent-yellow-400">
                         <label for="rememberId" class="font-bold text-sm">記住房間 ID</label>
                     </div>
-                    <button onclick="handleAuth('login')" class="w-full bg-yellow-400 text-indigo-900 p-4 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-transform">進入帳簿</button>
+                    <button onclick="handleAuth('login')" class="w-full bg-yellow-400 text-indigo-900 p-4 rounded-2xl font-black text-xl shadow-lg">進入帳簿</button>
                     <button onclick="handleAuth('create')" class="w-full bg-indigo-800 text-indigo-100 p-3 rounded-2xl font-bold text-xs opacity-70">建立新房間</button>
                 </div>
-            </div>
-
-            <div class="space-y-2">
-                <details class="dropdown-card border-l-8 border-sky-400">
-                    <summary class="dropdown-summary text-sky-800 text-sm"><span>🙋‍♂️ 團員使用指南</span><span>⊕</span></summary>
-                    <div class="dropdown-content text-xs text-slate-600 space-y-3">
-                        <p>1. <b>權限說明</b>：您可以刪除自己代墊或有參與分帳的項目。</p>
-                        <p>2. <b>操作</b>：在明細表中點擊「編輯」或「刪除」。</p>
-                    </div>
-                </details>
-                <details class="dropdown-card border-l-8 border-indigo-400">
-                    <summary class="dropdown-summary text-indigo-800 text-sm"><span>👑 管理員功能指南</span><span>⊕</span></summary>
-                    <div class="dropdown-content text-xs text-slate-600 space-y-3">
-                        <p>1. <b>公帳刪除</b>：只有管理員能刪除「公帳支出」與「公帳收入」。</p>
-                    </div>
-                </details>
             </div>
         </div>
 
@@ -101,10 +88,10 @@
                 </h2>
                 <div class="space-y-2">
                     <div class="flex gap-2">
-                        <input type="date" id="expDate" class="w-1/2 compact-input bg-slate-50 border-none">
+                        <input type="date" id="expDate" class="w-1/2 compact-input bg-slate-50 border-none font-bold text-indigo-900">
                         <select id="expCategory" class="w-1/2 compact-input bg-slate-50 border-none font-bold"></select>
                     </div>
-                    <input type="text" id="expDesc" placeholder="內容" class="w-full compact-input bg-slate-50 border-none font-bold">
+                    <input type="text" id="expDesc" placeholder="內容 (如：晚餐、計程車)" class="w-full compact-input bg-slate-50 border-none font-bold">
                     <div class="flex gap-2">
                         <input type="number" id="expAmount" placeholder="金額" class="w-1/2 compact-input bg-indigo-50 border-none font-black text-indigo-700">
                         <select id="expPayer" class="w-1/2 compact-input bg-indigo-50 border-none font-bold text-indigo-700"></select>
@@ -115,16 +102,16 @@
             </div>
 
             <details class="dropdown-card border-l-8 border-amber-200">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>📒 公帳收入明細紀錄</span><span>▼</span></summary>
-                <div id="incomeTimeline" class="dropdown-content space-y-2"></div>
+                <summary class="dropdown-summary text-slate-600 text-xs"><span>📒 公帳收入明細 (按日期)</span><span>▼</span></summary>
+                <div id="incomeTimeline" class="dropdown-content"></div>
             </details>
             <details class="dropdown-card border-l-8 border-emerald-400">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>💰 公帳支付明細表</span><span>▼</span></summary>
-                <div id="publicTimeline" class="dropdown-content space-y-2"></div>
+                <summary class="dropdown-summary text-slate-600 text-xs"><span>💰 公帳支付明細 (按日期)</span><span>▼</span></summary>
+                <div id="publicTimeline" class="dropdown-content"></div>
             </details>
-            <details class="dropdown-card border-l-8 border-indigo-400">
-                <summary class="dropdown-summary text-slate-600 text-xs"><span>👤 個人代墊明細表</span><span>▼</span></summary>
-                <div id="personalTimeline" class="dropdown-content space-y-2"></div>
+            <details class="dropdown-card border-l-8 border-indigo-400" open>
+                <summary class="dropdown-summary text-slate-600 text-xs"><span>👤 個人代墊明細 (按日期)</span><span>▼</span></summary>
+                <div id="personalTimeline" class="dropdown-content"></div>
             </details>
 
             <details id="settleAreaDetails" class="dropdown-card border-l-8 border-slate-900 bg-slate-900 shadow-xl">
@@ -132,7 +119,7 @@
                 <div class="dropdown-content bg-slate-900 text-white pt-2">
                     <div id="balanceAudit" class="bg-white/10 rounded-xl p-3 mb-4 space-y-1"></div>
                     <div id="splitResult" class="space-y-2 mb-6"></div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 pb-2">
                         <button onclick="exportCSV()" class="flex-1 bg-white/10 p-3 rounded-xl font-bold text-[10px]">📥 下載報表</button>
                         <div id="adminSettleZone" class="admin-hidden flex-1">
                             <button onclick="toggleSettlement()" class="w-full bg-rose-500/20 text-rose-300 p-3 rounded-xl font-black text-[10px] border border-rose-500/30">啟動/解除結算</button>
@@ -142,10 +129,10 @@
             </details>
 
             <details id="adminMemberSettings" class="admin-hidden dropdown-card border-l-8 border-slate-300">
-                <summary class="dropdown-summary text-slate-500 text-xs"><span>⚙️ 成員與系統設定</span><span>▼</span></summary>
+                <summary class="dropdown-summary text-slate-500 text-xs"><span>⚙️ 成員設定</span><span>▼</span></summary>
                 <div class="dropdown-content space-y-3">
-                    <input type="text" id="memberInput" class="w-full p-2 border rounded-lg text-xs" onchange="pushData()" placeholder="成員1,成員2 (英文逗號隔開)">
-                    <button onclick="clearAll()" class="w-full text-rose-500 p-1 font-black text-[9px] opacity-30 underline">炸毀房間並刪除所有資料</button>
+                    <input type="text" id="memberInput" class="w-full p-2 border rounded-lg text-xs" onchange="pushData()" placeholder="成員1,成員2">
+                    <button onclick="clearAll()" class="w-full text-rose-500 p-1 font-black text-[9px] opacity-30 underline">炸毀房間資料</button>
                 </div>
             </details>
         </div>
@@ -161,7 +148,7 @@
         async function handleAuth(mode) {
             roomId = document.getElementById('roomId').value.trim();
             roomPass = document.getElementById('roomPass').value.trim();
-            if (!roomId || !roomPass) return alert("請輸入完整資訊");
+            if (!roomId || !roomPass) return alert("資料不全");
             const snap = await db.ref('rooms/' + roomId).once('value');
             const data = snap.val();
             if (mode === 'login') {
@@ -225,50 +212,69 @@
             calculate();
         }
 
-        function lockMyIdentity() {
-            const user = document.getElementById('currentUser').value;
-            if (!user) return alert("請先選姓名");
-            if (!manager) { if (confirm(`成為管理員？`)) { manager = user; completeLock(user); } }
-            else if (user === manager) {
-                const inputPass = prompt(`管理密碼：`);
-                if (inputPass === managerPass) completeLock(user);
-                else alert("密碼錯誤");
-            } else { if (confirm(`鎖定為「${user}」？`)) completeLock(user); }
+        // --- 核心更新：日期分群渲染函數 ---
+        function groupDataByDate(dataList) {
+            const groups = {};
+            dataList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(item => {
+                if (!groups[item.date]) groups[item.date] = [];
+                groups[item.date].push(item);
+            });
+            return groups;
         }
-        function completeLock(user) { localStorage.setItem(`locked_user_${roomId}`, user); pushData(); updateUI(); }
 
-        // --- 核心更新：明細表加入條件式刪除按鈕 ---
         function renderTimeline(id, filter) {
-            const container = document.getElementById(id), user = document.getElementById('currentUser').value; container.innerHTML = "";
-            const list = expenses.filter(filter).sort((a,b)=>new Date(b.date)-new Date(a.date));
-            if (list.length === 0) { container.innerHTML = "<div class='text-center py-4 text-[10px] text-slate-300 italic'>尚無資料</div>"; return; }
+            const container = document.getElementById(id), user = document.getElementById('currentUser').value;
+            container.innerHTML = "";
+            const filtered = expenses.filter(filter);
+            if (filtered.length === 0) { container.innerHTML = "<div class='text-center py-4 text-[10px] text-slate-300 italic'>尚無資料</div>"; return; }
             
-            list.forEach(e => {
-                const isF = e.paid_by === "公帳";
-                // 權限判斷：公帳限管理員；個人代墊限本人或分帳者
-                const canEdit = !isSettled && (isF ? (user === manager) : (user === e.paid_by || e.inv.includes(user)));
-                const invNames = e.inv.length === members.length ? "全員" : e.inv.join(', ');
-                
-                container.innerHTML += `
-                <div class="bg-slate-50 p-2.5 rounded-xl flex items-center gap-3 border border-slate-100 mb-2">
-                    <div class="text-2xl">${emojis[e.category] || '🏷️'}</div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-black text-slate-800 text-[11px] truncate">${e.desc}</div>
-                        <div class="text-[8px] font-bold text-slate-400 mt-0.5">${e.date} · ${isF ? '✨ 公帳' : '👤 代墊:' + e.paid_by}</div>
-                        <div class="text-[8px] text-indigo-500 font-bold mt-0.5">分攤: ${invNames}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-black text-sm text-slate-900">$${Math.round(e.amount)}</div>
-                        ${canEdit ? `
-                        <div class="flex gap-2 justify-end mt-1">
-                            <button onclick="editExp(${e.id})" class="text-[9px] text-indigo-400 font-bold underline">編輯</button>
-                            <button onclick="delExp(${e.id})" class="text-[9px] text-rose-400 font-bold underline">刪除</button>
-                        </div>` : ''}
-                    </div>
-                </div>`;
+            const groups = groupDataByDate(filtered);
+            Object.keys(groups).forEach(date => {
+                container.innerHTML += `<div class="date-group-header">${date}</div>`;
+                groups[date].forEach(e => {
+                    const isF = e.paid_by === "公帳";
+                    const canEdit = !isSettled && (isF ? (user === manager) : (user === e.paid_by || e.inv.includes(user)));
+                    const invNames = e.inv.length === members.length ? "全員" : e.inv.join(', ');
+                    container.innerHTML += `
+                    <div class="bg-slate-50 p-2.5 rounded-xl flex items-center gap-3 border border-slate-100 mb-2">
+                        <div class="text-2xl">${emojis[e.category] || '🏷️'}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-black text-slate-800 text-[11px] truncate">${e.desc}</div>
+                            <div class="text-[8px] font-bold text-slate-400 mt-0.5">${isF ? '✨ 公帳支付' : '👤 代墊人:' + e.paid_by}</div>
+                            <div class="text-[8px] text-indigo-500 font-bold mt-0.5">分攤: ${invNames}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-sm text-slate-900">$${Math.round(e.amount)}</div>
+                            ${canEdit ? `<div class="flex gap-2 justify-end mt-1"><button onclick="editExp(${e.id})" class="text-[9px] text-indigo-400 font-bold underline">編輯</button><button onclick="delExp(${e.id})" class="text-[9px] text-rose-400 font-bold underline">刪除</button></div>` : ''}
+                        </div>
+                    </div>`;
+                });
             });
         }
 
+        function renderIncomeTimeline() {
+            const container = document.getElementById('incomeTimeline'), user = document.getElementById('currentUser').value;
+            container.innerHTML = "";
+            if (deposits.length === 0) { container.innerHTML = "<div class='text-center py-4 text-[10px] text-slate-300 italic'>尚無資料</div>"; return; }
+            
+            const groups = groupDataByDate(deposits);
+            Object.keys(groups).forEach(date => {
+                container.innerHTML += `<div class="date-group-header">${date}</div>`;
+                groups[date].forEach(d => {
+                    const isBulk = (d.from === "全員");
+                    container.innerHTML += `
+                    <div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center text-[10px] mb-1 border border-slate-100">
+                        <div class="font-bold">${isBulk ? '全員預繳' : '👤 ' + d.from + ' 補繳'}</div>
+                        <div class="text-right font-black text-amber-600">
+                            $${Math.round(d.amount)}
+                            ${(!isSettled && user===manager) ? `<br><button onclick="delDep('${d.id}')" class="text-rose-400 underline">刪除</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        // --- 其餘功能邏輯 (與先前版本一致) ---
         function calculate() {
             if (members.length === 0) return;
             const paid = {}, consumed = {}, bal = {};
@@ -283,10 +289,31 @@
             let cr = [], dbts = [], splits = [];
             Object.keys(bal).forEach(m => { if (bal[m] > 0.5) cr.push({ n: m, v: bal[m] }); else if (bal[m] < -0.5) dbts.push({ n: m, v: Math.abs(bal[m]) }); });
             let i = 0, j = 0;
-            while (i < dbts.length && j < cr.length) { let a = Math.min(dbts[i].v, cr[j].v); splits.push(`<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/10 shadow-inner text-[10px] text-white"><span>${dbts[i].n} → ${cr[j].n}</span><span class="text-yellow-400 font-black">$${Math.round(a)}</span></div>`); dbts[i].v -= a; cr[j].v -= a; if (dbts[i].v <= 0.5) i++; if (cr[j].v <= 0.5) j++; }
+            while (i < dbts.length && j < cr.length) { let a = Math.min(dbts[i].v, cr[j].v); splits.push(`<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/10 text-[10px] text-white"><span>${dbts[i].n} → ${cr[j].n}</span><span class="text-yellow-400 font-black">$${Math.round(a)}</span></div>`); dbts[i].v -= a; cr[j].v -= a; if (dbts[i].v <= 0.5) i++; if (cr[j].v <= 0.5) j++; }
             document.getElementById('splitResult').innerHTML = splits.join('') || "<div class='text-center py-4 text-[10px] opacity-30'>✨ 已結清</div>";
         }
 
+        function lockMyIdentity() {
+            const user = document.getElementById('currentUser').value;
+            if (!user) return alert("請選姓名");
+            if (!manager) { if (confirm(`成為管理員？`)) { manager = user; completeLock(user); } }
+            else if (user === manager) {
+                const inputPass = prompt(`管理密碼：`);
+                if (inputPass === managerPass) completeLock(user);
+                else alert("密碼錯誤");
+            } else { if (confirm(`鎖定為「${user}」？`)) completeLock(user); }
+        }
+        function completeLock(user) { localStorage.setItem(`locked_user_${roomId}`, user); pushData(); updateUI(); }
+        function logout() { localStorage.removeItem(`locked_user_${roomId}`); location.reload(); }
+        function toggleSettlement() { isSettled = !isSettled; pushData(); }
+        function saveExpense() { if (isSettled) return; const data = { id: editingId || Date.now(), date: document.getElementById('expDate').value, category: document.getElementById('expCategory').value, desc: document.getElementById('expDesc').value, amount: parseFloat(document.getElementById('expAmount').value), paid_by: document.getElementById('expPayer').value, inv: Array.from(document.querySelectorAll('.m-check:checked')).map(el => el.value) }; if (!data.date || !data.desc || isNaN(data.amount) || data.inv.length === 0) return alert("資料不全"); if (editingId) { const idx = expenses.findIndex(e => e.id === editingId); expenses[idx] = data; } else { expenses.push(data); } resetForm(); pushData(); }
+        function resetForm() { editingId = null; document.getElementById('formTitle').querySelector('span').innerText = "新增支出項目"; document.getElementById('expDesc').value = ""; document.getElementById('expAmount').value = ""; document.getElementById('cancelEdit').classList.add('hidden'); }
+        function editExp(id) { const e = expenses.find(x => x.id === id); editingId = id; document.getElementById('formTitle').querySelector('span').innerText = "正在編輯..."; document.getElementById('cancelEdit').classList.remove('hidden'); document.getElementById('expDate').value = e.date; document.getElementById('expDesc').value = e.desc; document.getElementById('expAmount').value = e.amount; document.getElementById('expCategory').value = e.category; document.getElementById('expPayer').value = e.paid_by; document.querySelectorAll('.m-check').forEach(ck => ck.checked = e.inv.includes(ck.value)); window.scrollTo({ top: 100, behavior: 'smooth' }); }
+        function delExp(id) { if(confirm("確定刪除？")) { expenses = expenses.filter(x => x.id !== id); pushData(); } }
+        function addBulkDep() { const amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value; if(isNaN(amt)||!date) return alert("錯誤"); deposits.push({id:Date.now(), from:"全員", amount:amt, date}); pushData(); }
+        function addSingleDep() { const f = document.getElementById('depMember').value, amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value; if(isNaN(amt)||!date) return alert("錯誤"); deposits.push({id:Date.now(), from:f, amount:amt, date}); pushData(); }
+        function delDep(id) { if(confirm("確定刪除？")) { deposits = deposits.filter(x => x.id.toString() !== id.toString()); pushData(); } }
+        function pushData() { const input = document.getElementById('memberInput').value; members = input.split(',').map(s => s.trim()).filter(s => s !== ""); db.ref('rooms/' + roomId).update({ members, expenses, deposits, manager, managerPass, isSettled }); }
         function updateForm() {
             const user = document.getElementById('currentUser').value, pSel = document.getElementById('expPayer');
             pSel.innerHTML = (user === manager ? `<option value="公帳">✨ 公帳支付</option>` : `<option value="" disabled>🚫 公帳 (限管理員)</option>`) + members.map(m => `<option value="${m}">${m} 代墊</option>`).join('');
@@ -295,20 +322,8 @@
             const catSel = document.getElementById('expCategory'); if (catSel.innerHTML === "") catSel.innerHTML = Object.keys(emojis).map(k => `<option value="${k}">${emojis[k]} ${k}</option>`).join('');
             const depM = document.getElementById('depMember'); depM.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
         }
-
-        function saveExpense() { if (isSettled) return; const data = { id: editingId || Date.now(), date: document.getElementById('expDate').value, category: document.getElementById('expCategory').value, desc: document.getElementById('expDesc').value, amount: parseFloat(document.getElementById('expAmount').value), paid_by: document.getElementById('expPayer').value, inv: Array.from(document.querySelectorAll('.m-check:checked')).map(el => el.value) }; if (!data.date || !data.desc || isNaN(data.amount) || data.inv.length === 0) return alert("資料不全"); if (editingId) { const idx = expenses.findIndex(e => e.id === editingId); expenses[idx] = data; } else { expenses.push(data); } resetForm(); pushData(); }
-        function resetForm() { editingId = null; document.getElementById('formTitle').querySelector('span').innerText = "新增支出項目"; document.getElementById('expDesc').value = ""; document.getElementById('expAmount').value = ""; document.getElementById('cancelEdit').classList.add('hidden'); }
-        function editExp(id) { const e = expenses.find(x => x.id === id); editingId = id; document.getElementById('formTitle').querySelector('span').innerText = "正在編輯..."; document.getElementById('cancelEdit').classList.remove('hidden'); document.getElementById('expDate').value = e.date; document.getElementById('expDesc').value = e.desc; document.getElementById('expAmount').value = e.amount; document.getElementById('expCategory').value = e.category; document.getElementById('expPayer').value = e.paid_by; document.querySelectorAll('.m-check').forEach(ck => ck.checked = e.inv.includes(ck.value)); window.scrollTo({ top: 100, behavior: 'smooth' }); }
-        function delExp(id) { if(confirm("確定刪除此筆支出？")) { expenses = expenses.filter(x => x.id !== id); pushData(); } }
-        function addBulkDep() { const amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value; if(isNaN(amt)||!date) return alert("錯誤"); deposits.push({id:Date.now(), from:"全員", amount:amt, date}); pushData(); }
-        function addSingleDep() { const f = document.getElementById('depMember').value, amt = parseFloat(document.getElementById('depAmount').value), date = document.getElementById('depDate').value; if(isNaN(amt)||!date) return alert("錯誤"); deposits.push({id:Date.now(), from:f, amount:amt, date}); pushData(); }
-        function delDep(id) { if(confirm("確定刪除此筆收入？")) { deposits = deposits.filter(x => x.id.toString() !== id.toString()); pushData(); } }
-        function pushData() { const input = document.getElementById('memberInput').value; members = input.split(',').map(s => s.trim()).filter(s => s !== ""); db.ref('rooms/' + roomId).update({ members, expenses, deposits, manager, managerPass, isSettled }); }
-        function renderIncomeTimeline() { const container = document.getElementById('incomeTimeline'), user = document.getElementById('currentUser').value; container.innerHTML = ""; deposits.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(d => { const isBulk = (d.from === "全員"); container.innerHTML += `<div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center text-[10px] mb-1"><div><div class="font-bold">${isBulk?'全員預繳':d.from+' 補繳'}</div><div class="text-[8px] text-slate-400">${d.date}</div></div><div class="text-right font-black text-amber-600">$${Math.round(d.amount)}${(!isSettled && user===manager)?`<br><button onclick="delDep('${d.id}')" class="text-rose-400 underline">刪除</button>`:''}</div></div>`; }); }
-        function logout() { localStorage.removeItem(`locked_user_${roomId}`); location.reload(); }
-        function toggleSettlement() { isSettled = !isSettled; pushData(); }
-        function exportCSV() { let csv = "\ufeff日期,項目,金額,支付者,分攤者\n"; expenses.forEach(e => csv += `${e.date},${e.desc},${e.amount},${e.paid_by},"${e.inv.join('/')}"\n`); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `結算_${roomId}.csv`; a.click(); }
-        function clearAll() { if (confirm("確定全部刪除？")) db.ref('rooms/' + roomId).remove().then(() => { localStorage.removeItem(`locked_user_${roomId}`); location.reload(); }); }
+        function exportCSV() { let csv = "\ufeff日期,項目,金額,支付者,分擔者\n"; expenses.forEach(e => csv += `${e.date},${e.desc},${e.amount},${e.paid_by},"${e.inv.join('/')}"\n`); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `結算_${roomId}.csv`; a.click(); }
+        function clearAll() { if (confirm("永久刪除？")) db.ref('rooms/' + roomId).remove().then(() => { localStorage.removeItem(`locked_user_${roomId}`); location.reload(); }); }
         window.onload = () => { const now = new Date().toISOString().split('T')[0]; document.getElementById('expDate').value = now; document.getElementById('depDate').value = now; const savedId = localStorage.getItem('saved_room_id'); if (savedId) { document.getElementById('roomId').value = savedId; document.getElementById('rememberId').checked = true; } };
     </script>
 </body>
