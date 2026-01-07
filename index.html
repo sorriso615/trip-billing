@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳助手 v55.0</title>
+    <title>旅遊分帳助手 v56.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -41,7 +41,6 @@
                 <div class="space-y-4">
                     <input type="text" id="roomId" class="w-full p-4 rounded-2xl text-black font-bold text-center outline-none" placeholder="房間 ID">
                     <input type="password" id="roomPass" class="w-full p-4 rounded-2xl text-black font-bold text-center outline-none" placeholder="進入暗號">
-                    
                     <button onclick="handleAuth('login')" class="w-full bg-yellow-400 text-indigo-900 p-4 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-transform">進入帳簿</button>
                     <button onclick="handleAuth('create')" class="w-full bg-indigo-800 text-indigo-100 p-3 rounded-2xl font-bold text-xs opacity-70">建立全新房間</button>
                     <div class="flex items-center justify-center gap-2 py-2 text-indigo-100">
@@ -60,15 +59,15 @@
                     </div>
                     <div class="space-y-2">
                         <p class="font-black text-indigo-600 border-b pb-1 text-sm">Step 2: 鎖定身份 (核心步驟)</p>
-                        <p>進入後請先在右上角選取姓名並點擊<span class="text-rose-500 font-bold">「鎖定身份」</span>。鎖定後才能開始記帳。</p>
+                        <p>進入後請先在右上角選取姓名並點擊<span class="text-rose-500 font-bold">「鎖定身份」</span>。鎖定後才能開始記帳。第一個鎖定的人自動成為「管理員」。</p>
                     </div>
                     <div class="space-y-2">
                         <p class="font-black text-indigo-600 border-b pb-1 text-sm">Step 3: 內頁幣別切換</p>
-                        <p>透過頂部黑色區塊的按鈕，可隨時切換 TWD 或 外幣視圖。切換後，新增的帳目會自動歸類至該幣別。</p>
+                        <p>透過頂部黑色區塊的按鈕，可直接切換 TWD 或 外幣視圖。切換後，新增的帳目會自動歸類至該幣別。</p>
                     </div>
                     <div class="space-y-2">
                         <p class="font-black text-indigo-600 border-b pb-1 text-sm">Step 4: 合併結算</p>
-                        <p>在底部的「結算報告」點選「合併結算」，輸入匯率即可將外幣自動折合台幣，清算轉帳金額。</p>
+                        <p>在底部的「結算報告」點選「合併結算」，輸入匯率即可將外幣自動折合台幣，清算最終轉帳清單。</p>
                     </div>
                 </div>
             </details>
@@ -92,7 +91,6 @@
                         <button onclick="logout()" class="text-slate-400 font-bold text-[10px] ml-1">登出</button>
                     </div>
                 </div>
-                
                 <div class="flex gap-2 bg-slate-800/50 p-1.5 rounded-2xl border border-white/5">
                     <button id="btnSwitchTWD" onclick="changeCurrentCurrency('TWD')" class="flex-1 py-2 rounded-xl font-black text-xs transition-all text-slate-500">TWD</button>
                     <button id="btnSwitchSUB" onclick="changeCurrentCurrency('SUB')" class="flex-1 py-2 rounded-xl font-black text-xs transition-all text-slate-500">外幣</button>
@@ -135,15 +133,6 @@
                             </div>
                         </div>
                     </details>
-
-                    <details id="adminMemberSettings" class="admin-hidden dropdown-card border-l-8 border-slate-300">
-                        <summary class="dropdown-summary text-slate-600 text-base"><span>⚙️ 管理員設定</span><span>▼</span></summary>
-                        <div class="dropdown-content space-y-4 pt-2">
-                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1">第二幣別 (如 JPY)</label><input type="text" id="subCurrencyInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
-                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1">團員名單 (逗號隔開)</label><input type="text" id="memberInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
-                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1">管理暗號</label><input type="text" id="adminPassInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
-                        </div>
-                    </details>
                 </div>
 
                 <div class="space-y-4">
@@ -170,17 +159,26 @@
                             </div>
                             <div id="rateZone" class="hidden bg-indigo-900/50 p-3 rounded-xl mb-4 border border-indigo-500/30">
                                 <div class="flex items-center justify-between gap-3">
-                                    <span class="text-[10px] font-black text-indigo-200 uppercase italic tracking-widest">Exchange Rate</span>
+                                    <span class="text-[10px] font-black text-indigo-200 uppercase italic tracking-widest">Rate</span>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-xs font-bold text-white">1 <span id="mixCurName">JPY</span> =</span>
+                                        <span class="text-xs font-bold">1 <span id="mixCurName">JPY</span> =</span>
                                         <input type="number" id="manualRate" step="0.0001" class="w-24 p-1 bg-white text-indigo-900 rounded font-black text-center" onchange="pushData()">
-                                        <span class="text-xs font-bold text-white">TWD</span>
+                                        <span class="text-xs font-bold">TWD</span>
                                     </div>
                                 </div>
                             </div>
                             <div id="balanceAudit" class="bg-white/10 rounded-xl p-3 mb-4 space-y-1"></div>
                             <div id="splitResult" class="space-y-2 mb-6"></div>
                             <div id="adminSettleZone" class="admin-hidden"><button onclick="toggleSettlement()" class="w-full bg-rose-500/20 text-rose-300 p-3 rounded-xl font-black text-[10px] border border-rose-500/30">啟動/解除封存</button></div>
+                        </div>
+                    </details>
+
+                    <details id="adminMemberSettings" class="admin-hidden dropdown-card border-l-8 border-slate-300">
+                        <summary class="dropdown-summary text-slate-600 text-base"><span>⚙️ 管理員設定</span><span>⊕</span></summary>
+                        <div class="dropdown-content space-y-4 pt-2">
+                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-widest">Second Currency</label><input type="text" id="subCurrencyInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-widest">Members (Comma Split)</label><input type="text" id="memberInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-widest">Admin Password</label><input type="text" id="adminPassInput" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-bold" onchange="pushData()"></div>
                         </div>
                     </details>
                 </div>
@@ -207,7 +205,7 @@
                 startSync();
             } else {
                 if (data) return alert("ID 已存在");
-                const newSub = prompt("輸入第二幣別名稱 (例如 JPY):", "JPY") || "JPY";
+                const newSub = prompt("輸入第二幣別 (如 JPY):", "JPY") || "JPY";
                 await db.ref('rooms/' + roomId).set({ password: roomPass, manager: "", managerPass: "1234", isSettled: false, members: ["A", "B"], subCurrency: newSub, rate: 1 });
                 startSync();
             }
@@ -235,19 +233,14 @@
             document.querySelectorAll('.cur-text').forEach(el => el.innerText = currentCurrency);
             document.getElementById('btnSwitchSUB').innerText = subCurrency;
             document.getElementById('mixCurName').innerText = subCurrency;
-            
-            // 幣別切換鈕樣式更新
             document.getElementById('btnSwitchTWD').className = (currentCurrency === 'TWD') ? "flex-1 py-2 rounded-xl font-black text-xs transition-all cur-toggle-active" : "flex-1 py-2 rounded-xl font-black text-xs transition-all text-slate-500";
             document.getElementById('btnSwitchSUB').className = (currentCurrency !== 'TWD') ? "flex-1 py-2 rounded-xl font-black text-xs transition-all cur-toggle-active" : "flex-1 py-2 rounded-xl font-black text-xs transition-all text-slate-500";
-
             document.getElementById('subCurrencyInput').value = subCurrency;
             document.getElementById('manualRate').value = currentRate;
             document.getElementById('memberInput').value = members.join(', ');
             document.getElementById('adminPassInput').value = managerPass;
-
             const uSel = document.getElementById('currentUser'), savedU = localStorage.getItem(`locked_user_${roomId}`);
             uSel.innerHTML = `<option value="">-- 我是 --</option>` + members.map(m => `<option value="${m}" ${m===savedU?'selected':''}>${m}</option>`).join('');
-            
             if (savedU) {
                 uSel.disabled = true; uSel.classList.add('is-locked');
                 document.getElementById('btnLockUser').classList.add('hidden');
@@ -255,48 +248,31 @@
                 document.getElementById('submitBtn').classList.remove('opacity-50', 'pointer-events-none');
                 document.getElementById('submitBtn').innerText = editingId ? "儲存修改" : "確認儲存項目";
             }
-
             document.getElementById('settledBanner').classList.toggle('hidden', !isSettled);
             document.getElementById('expenseFormBox').classList.toggle('settled-lock', isSettled);
             document.querySelectorAll('.admin-hidden').forEach(el => (savedU === manager || (!manager && el.id === 'adminMemberSettings')) ? el.classList.remove('admin-hidden') : el.classList.add('admin-hidden'));
-
-            updateForm(); 
-            renderIncomeTimeline();
+            updateForm(); renderIncomeTimeline();
             renderTimeline('publicTimeline', e => e.paid_by === "公帳" && (e.currency === currentCurrency || (!e.currency && currentCurrency === "TWD")));
             renderTimeline('personalTimeline', e => e.paid_by !== "公帳" && (e.currency === currentCurrency || (!e.currency && currentCurrency === "TWD")));
             calculate();
         }
 
-        // 修改與刪除權限判斷：公帳僅限管理員
         function renderTimeline(id, filter) {
             const container = document.getElementById(id), user = localStorage.getItem(`locked_user_${roomId}`);
             container.innerHTML = "";
             const filtered = expenses.filter(filter).sort((a,b) => new Date(b.date) - new Date(a.date));
             if (!filtered.length) { container.innerHTML = "<p class='text-center py-4 text-xs text-slate-300 italic'>尚無資料</p>"; return; }
             const grouped = filtered.reduce((acc, obj) => { (acc[obj.date] = acc[obj.date] || []).push(obj); return acc; }, {});
-            
             Object.keys(grouped).forEach(date => {
                 container.innerHTML += `<div class="date-divider"><span class="date-label">${date}</span></div>`;
                 grouped[date].forEach(e => {
                     const isPub = e.paid_by === "公帳";
-                    let canEdit = false;
-                    if (isPub) {
-                        canEdit = !isSettled && (user === manager); // 公帳僅管理員
-                    } else {
-                        canEdit = !isSettled && (user === manager || user === e.paid_by || (e.inv && e.inv.includes(user))); // 個人代墊
-                    }
-
+                    let canEdit = isPub ? (!isSettled && user === manager) : (!isSettled && (user === manager || user === e.paid_by || (e.inv && e.inv.includes(user))));
                     container.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl flex items-center gap-3 border border-slate-100 mb-2">
                         <div class="text-3xl">${emojis[e.category] || '🏷️'}</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="font-black text-sm truncate text-slate-800">${e.desc}</div>
-                            <div class="text-[10px] text-slate-400 mt-1 font-bold">${isPub?'✨ 公帳':e.paid_by} ➔ ${e.inv.length===members.length?'全員':e.inv.join(',')}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="font-black text-slate-900">$${Math.round(e.amount)}</div>
-                            ${canEdit ? `<div class="flex gap-1 mt-1"><button onclick="editExp(${e.id})" class="btn-action bg-indigo-100 text-indigo-600">編</button><button onclick="delExp(${e.id})" class="btn-action bg-rose-100 text-rose-500">刪</button></div>` : ''}
-                        </div>
-                    </div>`;
+                        <div class="flex-1 min-w-0"><div class="font-black text-sm truncate text-slate-800">${e.desc}</div><div class="text-[10px] text-slate-400 mt-1 font-bold">${isPub?'✨ 公帳':e.paid_by} ➔ ${e.inv.length===members.length?'全員':e.inv.join(',')}</div></div>
+                        <div class="text-right"><div class="font-black text-slate-900">$${Math.round(e.amount)}</div>
+                        ${canEdit ? `<div class="flex gap-1 mt-1"><button onclick="editExp(${e.id})" class="btn-action bg-indigo-100 text-indigo-600">編</button><button onclick="delExp(${e.id})" class="btn-action bg-rose-100 text-rose-500">刪</button></div>` : ''}</div></div>`;
                 });
             });
         }
@@ -304,8 +280,7 @@
         function lockMyIdentity() {
             const user = document.getElementById('currentUser').value;
             if (!user) return alert("請選取姓名");
-            if (!manager) manager = user; 
-            else if (user === manager && prompt("管理暗號") !== managerPass) return alert("錯誤");
+            if (!manager) manager = user; else if (user === manager && prompt("管理暗號") !== managerPass) return alert("錯誤");
             localStorage.setItem(`locked_user_${roomId}`, user); pushData(); updateUI();
         }
 
@@ -328,8 +303,7 @@
         }
 
         function calculate() {
-            const paid = {}, consumed = {};
-            members.forEach(m => { paid[m] = 0; consumed[m] = 0; });
+            const paid = {}, consumed = {}; members.forEach(m => { paid[m] = 0; consumed[m] = 0; });
             let fundBal = 0;
             if (settleMode === 'MIX') {
                 deposits.forEach(d => { const amt = (d.currency === subCurrency) ? d.amount * currentRate : d.amount; if(d.from === "全員") members.forEach(m => paid[m] += amt); else paid[d.from] += amt; });
