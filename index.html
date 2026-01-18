@@ -26,8 +26,7 @@
         /* RWD 設定 */
         @media (min-width: 1024px) {
             .app-container { display: grid; grid-template-columns: 450px 1fr; gap: 24px; align-items: start; }
-            .sticky-panel { position: sticky; top: 100px; }
-            header.sticky { position: sticky; top: 0; z-index: 50; }
+            .sticky-panel { position: sticky; top: 20px; } 
         }
     </style>
 </head>
@@ -85,7 +84,7 @@
     </div>
 
     <div id="main-content" class="hidden max-w-6xl mx-auto">
-        <header class="bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-6 sticky top-0 z-50 transition-all duration-300">
+        <header class="bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-6 transition-all duration-300">
             <div class="flex justify-between items-center mb-4 border-b pb-4">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                     <span id="display-user" class="text-base font-normal bg-slate-100 px-2 py-1 rounded-lg"></span>
@@ -131,7 +130,7 @@
                                 <select id="exp-path" onchange="togglePayerSelection()" class="text-sm p-1 rounded bg-white border-0 font-bold text-slate-700 ring-1 ring-slate-200">
                                     <option id="opt-public-pay" value="public">公帳餘額支付</option>
                                     <option value="advance">個人代墊 (私帳)</option>
-                                    <option value="personal">個人獨資 (不記公帳)</option>
+                                    <option value="personal">個人支付</option>
                                 </select>
                             </div>
                             <div id="payer-select-div" class="hidden mb-3 animate-fade-in">
@@ -244,12 +243,17 @@
                                             <option value="EUR">🇪🇺 歐元</option>
                                             <option value="CNY">🇨🇳 人民幣</option>
                                             <option value="THB">🇹🇭 泰銖</option>
+                                            <option value="SGD">🇸🇬 新幣</option>
+                                            <option value="MYR">🇲🇾 馬幣</option>
+                                            <option value="VND">🇻🇳 越南盾</option>
+                                            <option value="PHP">🇵🇭 披索</option>
+                                            <option value="IDR">🇮🇩 印尼盾</option>
                                         </select>
                                         <input type="text" id="set-sub-name" class="w-2/3 p-2 rounded border">
                                     </div>
                                 </div>
 
-                                <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border mt-1" step="0.001"></div>
+                                <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border mt-1" step="0.0001"></div>
                                 <div><label>管理員</label><select id="set-manager" class="w-full p-2 rounded border mt-1"></select></div>
                                 <div><label>帳簿密碼</label><input type="text" id="set-book-pass" class="w-full p-2 rounded border mt-1"></div>
                                 <div><label>管理密碼</label><input type="text" id="set-admin-pass" class="w-full p-2 rounded border mt-1"></div>
@@ -279,13 +283,8 @@
 
         let db = { items: [], members: [] };
         let currentUser = "";
-        
-        // 1. 預設改為台幣
         let currentCur = "TWD"; 
-        
-        // 4. 新增排序狀態
         let isSortDesc = true; 
-        
         let SMode = 'MIX';
         let chartInstance = null;
 
@@ -401,7 +400,6 @@
             document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理)' : ''}`;
             document.getElementById('btn-sub').innerText = `🌍 ${db.subName}`;
             
-            // 初始化時呼叫切換幣別，確保 UI 狀態正確 (TWD 為預設)
             switchCurrency(currentCur);
             
             document.getElementById('exp-date').valueAsDate = new Date();
@@ -477,14 +475,12 @@
             renderSettleReport();
         }
 
-        // 4. 排序邏輯修改
         function toggleSort() {
             isSortDesc = !isSortDesc;
             refreshUI(false);
         }
 
         function renderLists() {
-            // 根據 isSortDesc 決定排序
             const sortFactor = isSortDesc ? 1 : -1;
             const list = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
@@ -506,14 +502,16 @@
 
             const pvt = list.filter(i => i.type === 'personal' && i.payer === currentUser);
             document.getElementById('pvt-list').innerHTML = pvt.map(i => {
-                return listRow(i, `個人獨資`, 'text-red-600', `-${Math.round(i.amt)}`, true);
+                return listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true);
             }).join('') || noData();
         }
 
         function listRow(i, sub, color, amt, canEdit) {
             const editBtn = (!db.isSealed && canEdit) ? `<button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : '';
+            // 4. 新增項目小圖示 (取分類的第一個字元，通常是Emoji)
+            const icon = i.cat ? i.cat.split(' ')[0] : '💸';
             return `<div class="flex justify-between p-3 border-b border-slate-100 bg-white items-center">
-                <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-lg text-slate-700">${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(${sub})</span></div></div>
+                <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-lg text-slate-700">${icon} ${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(${sub})</span></div></div>
                 <div class="text-right"><div class="${color} font-bold text-lg amt-text">${amt}</div>${editBtn}</div>
             </div>`;
         }
@@ -530,7 +528,6 @@
             document.getElementById('exp-amt').value = item.amt;
             document.getElementById('exp-path').value = item.type;
             
-            // 編輯時標題保持單純
             document.getElementById('form-header-text').innerText = "✏️ 編輯項目";
             document.getElementById('btn-submit').innerText = "確認修改";
             document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-lg shadow-lg";
@@ -550,10 +547,7 @@
             document.getElementById('edit-id').value = "";
             document.getElementById('exp-title').value = "";
             document.getElementById('exp-amt').value = "";
-            
-            // 2. 重置時恢復動態標題
             document.getElementById('form-header-text').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
-            
             document.getElementById('btn-submit').innerText = "確認記帳";
             document.getElementById('btn-submit').className = "flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-lg shadow-lg";
             document.getElementById('btn-cancel-edit').classList.add('hidden');
@@ -619,7 +613,6 @@
         }
 
         function renderLedger() {
-            // 4. 排序邏輯修改
             const sortFactor = isSortDesc ? 1 : -1;
             const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
             
@@ -629,25 +622,27 @@
 
             list.forEach(i => {
                 const share = Math.round(i.amt / (i.splitters?.length || 1));
+                const icon = i.cat ? i.cat.split(' ')[0] : '💸';
+                
                 if (i.type === 'fund' && i.splitters.includes(currentUser)) {
                     sums.pf += share; nets.pub += share;
                     htmls.pf += lRow(i.date, "預繳公帳", "text-green-600", `+${share}`);
                 }
                 if (i.type === 'public' && i.splitters.includes(currentUser)) {
                     sums.pc += share; nets.pub -= share;
-                    htmls.pc += lRow(i.date, i.title, "text-red-600", `-${share}`);
+                    htmls.pc += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
                 }
                 if (i.type === 'advance' && i.payer === currentUser) {
                     sums.ap += i.amt; nets.adv += i.amt;
-                    htmls.ap += lRow(i.date, `(我) ➡ (${i.splitters.join(',')})`, "text-green-600", `+${Math.round(i.amt)}`, `代墊 ${i.title}`);
+                    htmls.ap += lRow(i.date, `${icon} (我) ➡ (${i.splitters.join(',')})`, "text-green-600", `+${Math.round(i.amt)}`, `代墊 ${i.title}`);
                 }
                 if (i.type === 'advance' && i.splitters.includes(currentUser)) {
                     sums.ac += share; nets.adv -= share;
-                    htmls.ac += lRow(i.date, `(${i.payer}) ➡ (${i.splitters.join(',')})`, "text-red-600", `-${share}`, i.title);
+                    htmls.ac += lRow(i.date, `${icon} (${i.payer}) ➡ (${i.splitters.join(',')})`, "text-red-600", `-${share}`, i.title);
                 }
                 if (i.type === 'personal' && i.payer === currentUser) {
                     sums.pp += i.amt;
-                    htmls.pp += lRow(i.date, i.title, "text-red-600", `-${Math.round(i.amt)}`);
+                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
                 }
             });
 
@@ -659,7 +654,7 @@
                     <div class="text-right font-black p-3 mt-2 border-t text-slate-700">公帳權益: <span class="text-blue-600">${nets.pub}</span></div>
                 </div>
                 <div class="mb-8">
-                    <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-purple-500">🟣 個人獨資</h4>
+                    <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-purple-500">🟣 個人支付</h4>
                     ${lBlock("個人支出", htmls.pp, sums.pp)}
                 </div>
                 <div>
@@ -771,10 +766,7 @@
         function switchSettleMode(m) { SMode = m; refreshUI(false); }
         function switchCurrency(c) { 
             currentCur = c; 
-            
-            // 2. 切換幣別時，同時更新標題文字
             document.getElementById('form-header-text').innerText = `📝 新增支出 (${c==='TWD'?'台幣':db.subName})`;
-
             refreshUI(false); 
             document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='TWD'?'currency-active':'bg-white text-slate-400'}`;
             document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='SUB'?'currency-active':'bg-white text-slate-400'}`;
@@ -799,12 +791,14 @@
             db.items.push({id:Date.now(), date:document.getElementById('fund-date').value, cat:"💰", title:"全員公帳預繳", amt:p*db.members.length, cur:currentCur, type:'fund', payer:"全員", splitters:[...db.members]}); refreshUI(); alert("入帳成功");
         }
         
-        // 5. 幣別快選輔助功能
+        // 3. 增加東南亞幣別匯率參考
         function updateSubNameBySelect(val) {
             if(!val) return;
             document.getElementById('set-sub-name').value = val;
-            // 順便給個參考匯率 (僅參考)
-            const rates = { 'JPY': 0.22, 'USD': 31.5, 'EUR': 34.5, 'KRW': 0.024, 'CNY': 4.4, 'THB': 0.9 };
+            const rates = { 
+                'JPY': 0.22, 'USD': 31.5, 'EUR': 34.5, 'KRW': 0.024, 'CNY': 4.4, 'THB': 0.9,
+                'SGD': 23.5, 'MYR': 7.1, 'VND': 0.0013, 'PHP': 0.56, 'IDR': 0.002
+            };
             if(rates[val]) document.getElementById('set-rate').value = rates[val];
         }
 
