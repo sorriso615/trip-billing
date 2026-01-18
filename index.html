@@ -211,8 +211,8 @@
                             <button id="btn-settle-sub" onclick="switchSettleMode('SUB')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">外幣</button>
                             <button id="btn-settle-mix" onclick="switchSettleMode('MIX')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">混合</button>
                         </div>
-                        <div id="settle-info-box" class="mb-4 text-sm text-slate-500 bg-slate-50 p-3 rounded border"></div>
-                        <div id="settle-content" class="space-y-6"></div>
+                        <div id="settle-table-area" class="mb-6"></div>
+                        <div id="settle-transfer-area" class="border-t pt-4"></div>
                     </div>
                 </details>
                 <details id="panel-admin" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 group border-l-4 border-l-slate-800">
@@ -715,8 +715,8 @@
             document.getElementById('btn-settle-sub').className = btnClass + (SMode==='SUB' ? active : inactive);
             document.getElementById('btn-settle-mix').className = btnClass + (SMode==='MIX' ? active : inactive);
 
-            const balances = {};
-            db.members.forEach(m => balances[m] = 0);
+            const stats = {};
+            db.members.forEach(m => stats[m] = { paid: 0, share: 0, bal: 0 });
             let potBalance = 0;
 
             db.items.forEach(i => {
@@ -729,55 +729,80 @@
 
                 if (i.type === 'fund') {
                     potBalance += val;
-                    if (i.payer === '全員') {
-                         // 假設全員均分支付
-                         i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] += share; });
-                    } else if (balances[i.payer] !== undefined) {
-                         balances[i.payer] += val;
+                    // 預繳：payer 視為「已付」
+                    if(i.payer === '全員') {
+                        i.splitters.forEach(m => { if(stats[m]) stats[m].paid += share; });
+                    } else if(stats[i.payer]) {
+                        stats[i.payer].paid += val;
                     }
                 }
                 else if (i.type === 'public') {
                     potBalance -= val;
-                    i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] -= share; });
+                    // 公帳支出：splitters 增加「應付(share)」
+                    i.splitters.forEach(m => { if(stats[m]) stats[m].share += share; });
                 }
                 else if (i.type === 'advance') {
-                    if(balances[i.payer] !== undefined) balances[i.payer] += val;
-                    i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] -= share; });
+                    // 代墊：payer 增加「已付」，splitters 增加「應付」
+                    if(stats[i.payer]) stats[i.payer].paid += val;
+                    i.splitters.forEach(m => { if(stats[m]) stats[m].share += share; });
                 }
             });
 
-            // 關鍵邏輯：將公帳餘額(potBalance) 反向歸屬給管理員
-            // 若 potBalance > 0 (剩錢)，管理員欠大家 (Balance -= pot)
-            // 若 potBalance < 0 (透支)，大家欠管理員 (Balance -= -pot => Balance += pot)
-            if (db.manager && balances[db.manager] !== undefined) {
-                balances[db.manager] -= potBalance;
-            }
+            // 計算初始 Balance (不含 Pot 剩餘款)
+            Object.keys(stats).forEach(m => {
+                stats[m].bal = stats[m].paid - stats[m].share;
+            });
 
-            // 顯示公帳水位提示
-            const potText = potBalance >= 0 ? 
-                `💰 公帳剩餘 ${Math.round(potBalance)} (視為管理員需退還)` : 
-                `💸 公帳透支 ${Math.round(Math.abs(potBalance))} (視為管理員代墊)`;
-            document.getElementById('settle-info-box').innerHTML = `<b>${db.manager}</b> 負責公帳。<br>${potText}`;
-
-            let html = `<table class="w-full text-sm text-center">
-                <thead class="bg-slate-800 text-white"><tr><th class="p-2">成員</th><th class="p-2">最終結餘</th></tr></thead>
-                <tbody>`;
+            // 1. 顯示表格 (純粹顯示個人 預繳/代墊 vs 應付/消費)
+            let tableHtml = `<table class="w-full text-sm text-center border-collapse">
+                <thead class="bg-slate-100 text-slate-600"><tr>
+                    <th class="p-2 border-b">成員</th>
+                    <th class="p-2 border-b">預繳/代墊</th>
+                    <th class="p-2 border-b">應付/消費</th>
+                    <th class="p-2 border-b">帳面結餘</th>
+                </tr></thead><tbody>`;
             
-            const netArr = [];
             db.members.forEach(m => {
-                const bal = balances[m];
-                netArr.push({ name: m, bal });
-                html += `<tr class="border-b bg-white">
-                    <td class="p-2 font-bold">${m}</td>
-                    <td class="p-2 font-black text-lg ${bal>=0?'text-blue-600':'text-red-600'}">${bal>=0?'+':''}${Math.round(bal)}</td>
+                const s = stats[m];
+                tableHtml += `<tr class="border-b bg-white">
+                    <td class="p-3 font-bold text-slate-800">${m}</td>
+                    <td class="p-3 text-green-600 font-bold amt-text">${Math.round(s.paid)}</td>
+                    <td class="p-3 text-red-600 font-bold amt-text">${Math.round(s.share)}</td>
+                    <td class="p-3 font-black amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${Math.round(s.bal)}</td>
                 </tr>`;
             });
-            html += `</tbody></table>`;
+            tableHtml += `</tbody></table>
+            <div class="mt-2 text-xs text-slate-400 text-center">* 上表僅顯示個人收支，尚未包含公帳結餘歸屬</div>`;
+            document.getElementById('settle-table-area').innerHTML = tableHtml;
+
+            // 2. 計算最終轉帳 (將公帳餘額算給管理員)
+            // 複製一份 stats 進行結算運算，不動表格數據
+            const finalBalances = {};
+            db.members.forEach(m => finalBalances[m] = stats[m].bal);
+
+            // 公帳邏輯：
+            // potBalance > 0 (剩錢): 管理員欠大家 -> 管理員 Balance 減少 (要吐出來)
+            // potBalance < 0 (透支): 大家欠管理員 -> 管理員 Balance 增加 (要收回來)
+            // 數學上: finalBalances[manager] -= potBalance (減去正值=變負, 減去負值=變正)
+            if (db.manager && finalBalances[db.manager] !== undefined) {
+                finalBalances[db.manager] -= potBalance;
+            }
+
+            const potText = potBalance >= 0 ? 
+                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${Math.round(potBalance)}</span> (由 ${db.manager} 退還)` : 
+                `💸 公帳透支 <span class="text-red-600 font-bold">${Math.round(Math.abs(potBalance))}</span> (由 ${db.manager} 先墊)`;
             
-            let receivers = netArr.filter(n => n.bal > 0.5).sort((a,b) => b.bal - a.bal);
-            let payers = netArr.filter(n => n.bal < -0.5).map(n => ({...n, bal: Math.abs(n.bal)})).sort((a,b) => b.bal - a.bal);
+            // 產生轉帳清單
+            let receivers = [];
+            let payers = [];
+            for (const [m, bal] of Object.entries(finalBalances)) {
+                if (bal > 0.5) receivers.push({ name: m, bal: bal });
+                else if (bal < -0.5) payers.push({ name: m, bal: Math.abs(bal) });
+            }
+            receivers.sort((a,b) => b.bal - a.bal);
+            payers.sort((a,b) => b.bal - a.bal);
+
             let logs = [];
-            
             payers.forEach(p => { 
                 receivers.forEach(r => {
                     if (p.bal <= 0 || r.bal <= 0) return;
@@ -787,8 +812,12 @@
                 });
             });
 
-            html += `<div class="mt-4 space-y-2 text-sm">${logs.map(l=>`<div class="bg-white p-3 border rounded shadow-sm border-l-4 border-blue-500 flex items-center gap-2">💸 ${l}</div>`).join('')}</div>`;
-            document.getElementById('settle-content').innerHTML = html;
+            document.getElementById('settle-transfer-area').innerHTML = `
+                <div class="bg-slate-50 p-3 rounded border mb-4 text-sm text-center">${potText}</div>
+                <h4 class="font-bold text-slate-700 mb-3">💸 建議轉帳 (已結清所有帳目)</h4>
+                <div class="space-y-2 text-sm">
+                    ${logs.length ? logs.map(l=>`<div class="bg-white p-3 border rounded shadow-sm border-l-4 border-blue-500 flex items-center gap-2">${l}</div>`).join('') : '<div class="text-center text-slate-400">帳目已平，無需轉帳</div>'}
+                </div>`;
         }
 
         function switchSettleMode(m) { SMode = m; refreshUI(false); }
