@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 專業互動記帳系統 (清爽版)</title>
+    <title>TripSplit 2026 專業互動記帳系統 (資訊透明版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -14,10 +14,10 @@
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; font-size: 16px; color: #334155; }
         input, select, button, p, span, div { font-size: 16px; }
         
-        /* 統一數字字體大小設定 */
+        /* 統一數字字體大小 */
         .amt-text { font-size: 16px !important; }
         
-        /* 極簡風格按鈕 */
+        /* 風格按鈕 */
         .currency-active { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
         
         /* 電腦版樣式 */
@@ -27,7 +27,7 @@
             header.sticky { position: sticky; top: 0; z-index: 50; }
         }
 
-        /* 手機版樣式修正 */
+        /* 手機版樣式 */
         @media (max-width: 1024px) {
             header.sticky { position: relative !important; top: auto !important; margin-bottom: 10px; padding: 12px !important; }
             
@@ -41,7 +41,7 @@
             }
             #public-stats-zone div { border-left: none !important; }
             #public-stats-zone p:first-child { font-size: 12px !important; color: #94a3b8; }
-            #public-stats-zone p:last-child { font-size: 16px !important; } /* 強制統一 */
+            #public-stats-zone p:last-child { font-size: 16px !important; }
             
             .flex.gap-2.mb-6 { gap: 8px; overflow-x: auto; padding-bottom: 5px; }
             .flex.gap-2.mb-6 button { white-space: nowrap; flex: none; padding: 8px 12px; font-size: 14px; }
@@ -89,7 +89,23 @@
                 <h3 class="font-black text-lg mb-3 text-slate-700">🆕 建立新帳簿</h3>
                 <div class="space-y-3">
                     <input type="password" id="secure-code" placeholder="設定帳簿密碼" class="w-full p-3 border rounded-xl">
-                    <input type="text" id="new-foreign-name" placeholder="外幣名稱 (如: 日幣)" class="w-full p-3 border rounded-xl">
+                    
+                    <div class="flex gap-2">
+                        <select onchange="document.getElementById('new-foreign-name').value=this.value" class="w-1/3 p-3 border rounded-xl bg-slate-50 text-sm font-bold text-center">
+                            <option value="">快速選擇</option>
+                            <option value="JPY">🇯🇵 日圓</option>
+                            <option value="USD">🇺🇸 美金</option>
+                            <option value="EUR">🇪🇺 歐元</option>
+                            <option value="KRW">🇰🇷 韓元</option>
+                            <option value="CNY">🇨🇳 人民幣</option>
+                            <option value="THB">🇹🇭 泰銖</option>
+                            <option value="VND">🇻🇳 越南盾</option>
+                            <option value="GBP">🇬🇧 英鎊</option>
+                            <option value="AUD">🇦🇺 澳幣</option>
+                        </select>
+                        <input type="text" id="new-foreign-name" placeholder="或自行輸入 (如: JPY)" class="w-2/3 p-3 border rounded-xl">
+                    </div>
+
                     <textarea id="new-members" placeholder="成員名單 (用逗號分隔，第一位為管理員)" class="w-full p-3 border rounded-xl h-24"></textarea>
                     <button onclick="createNewBook()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition">立即開戶</button>
                 </div>
@@ -111,7 +127,7 @@
             <div class="flex flex-col lg:flex-row gap-4 lg:items-center">
                 <div class="flex gap-2 w-full lg:w-auto">
                     <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all bg-white text-slate-400 hover:bg-slate-50">🇹🇼 台幣</button>
-                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all currency-active">🇯🇵 外幣</button>
+                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all currency-active">外幣</button>
                 </div>
 
                 <div id="public-stats-zone" class="grid grid-cols-1 lg:grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
@@ -262,6 +278,13 @@
         let sortDesc = true;
         let SMode = 'MIX';
 
+        // 國旗對照表
+        const currencyFlags = {
+            "JPY": "🇯🇵", "USD": "🇺🇸", "EUR": "🇪🇺", "KRW": "🇰🇷",
+            "CNY": "🇨🇳", "THB": "🇹🇭", "VND": "🇻🇳", "GBP": "🇬🇧",
+            "AUD": "🇦🇺", "CAD": "🇨🇦", "HKD": "🇭🇰", "SGD": "🇸🇬"
+        };
+
         // --- 1. 自動登入與帳簿記憶 ---
         window.onload = function() {
             const savedBookId = localStorage.getItem('trip_book_id_memory');
@@ -344,13 +367,20 @@
             initApp();
         }
 
+        function getFlag(curName) {
+            return currencyFlags[curName.toUpperCase()] || "🌍";
+        }
+
         function initApp() {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('loading-mask').classList.add('hidden');
 
             document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理員)' : ''}`;
-            document.getElementById('btn-sub').innerText = `🇯🇵 ${db.subName}`;
+            
+            const flag = getFlag(db.subName);
+            document.getElementById('btn-sub').innerText = `${flag} ${db.subName}`;
+            
             document.getElementById('tab-add-title').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
             
             document.getElementById('exp-date').valueAsDate = new Date();
@@ -422,7 +452,7 @@
             renderSettleReport();
         }
 
-        // --- 4. 渲染函數優化 (紅綠分明與資訊補全) ---
+        // --- 4. 渲染函數優化 (資訊透明化修改) ---
         
         function renderIncomeList() {
             const list = db.items.filter(i => i.type === 'fund' && i.cur === currentCur).sort((a,b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
@@ -494,7 +524,6 @@
                 const share = Math.round(i.amt / (i.splitters ? i.splitters.length : 1));
                 const splittersText = i.splitters ? i.splitters.join('、') : '';
 
-                // 1. 公帳預繳 (增加財產 -> 綠色)
                 if (i.type === 'fund' && i.splitters.includes(currentUser)) {
                     sumPubFund += share;
                     pubNet += share;
@@ -504,7 +533,6 @@
                     </div>`;
                 }
 
-                // 2. 公帳消費 (減少財產 -> 紅色)
                 if (i.type === 'public' && i.splitters.includes(currentUser)) {
                     sumPubCost += share;
                     pubNet -= share;
@@ -514,7 +542,6 @@
                     </div>`;
                 }
                 
-                // 3. 代墊 - 墊付 (應收 -> 綠色)
                 if (i.type === 'advance' && i.payer === currentUser) {
                     sumAdvPay += i.amt;
                     advNet += i.amt;
@@ -524,10 +551,10 @@
                     </div>`;
                 }
 
-                // 4. 代墊 - 分攤 (應付 -> 紅色)
                 if (i.type === 'advance' && i.splitters.includes(currentUser)) {
                     sumAdvCost += share;
                     advNet -= share;
+                    // 修改處：顯示完整分帳人名單
                     advCostHTML += `<div class="flex justify-between p-3 border-b border-slate-100 items-center">
                         <div><div class="text-xs text-slate-400">${i.date} (${i.payer}) ➡ (${splittersText})</div><div class="font-bold text-slate-700">${i.title}</div></div>
                         <div class="text-red-600 font-bold amt-text">-${share}</div>
@@ -535,16 +562,15 @@
                 }
             });
 
-            // 修正1&2&3&4: 統一紅綠色，並加入黑色小計
             const finalHTML = `
                 <div class="mb-8">
                     <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-slate-800">💰 公帳記錄</h4>
                     
-                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">📥 預繳存入</div>
+                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">預繳存入</div>
                     <div class="bg-white border-t border-b border-slate-200 mb-2">${pubFundHTML || '<p class="p-3 text-sm text-slate-300">無紀錄</p>'}</div>
                     <div class="text-right text-xs text-slate-900 font-bold pr-3 mb-4">小計: ${sumPubFund}</div>
                     
-                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">📤 消費扣抵</div>
+                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">消費扣抵</div>
                     <div class="bg-white border-t border-b border-slate-200 mb-2">${pubCostHTML || '<p class="p-3 text-sm text-slate-300">無紀錄</p>'}</div>
                     <div class="text-right text-xs text-slate-900 font-bold pr-3 mb-4">小計: ${sumPubCost}</div>
                     
@@ -554,11 +580,11 @@
                 <div>
                     <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-slate-800">⚡ 代墊與分攤</h4>
                     
-                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">💙 我幫人墊 (應收)</div>
+                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">我幫人墊 (應收)</div>
                     <div class="bg-white border-t border-b border-slate-200 mb-2">${advPayHTML || '<p class="p-3 text-sm text-slate-300">無紀錄</p>'}</div>
                     <div class="text-right text-xs text-slate-900 font-bold pr-3 mb-4">小計: ${sumAdvPay}</div>
                     
-                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">🧡 人幫我墊 (應付)</div>
+                    <div class="text-sm font-bold text-slate-500 mb-1 pl-2">人幫我墊 (應付)</div>
                     <div class="bg-white border-t border-b border-slate-200 mb-2">${advCostHTML || '<p class="p-3 text-sm text-slate-300">無紀錄</p>'}</div>
                     <div class="text-right text-xs text-slate-900 font-bold pr-3 mb-4">小計: ${sumAdvCost}</div>
                     
@@ -701,6 +727,9 @@
             currentCur = cur;
             document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${cur==='TWD'?'currency-active':'bg-white text-slate-400 hover:bg-slate-50'}`;
             document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${cur==='SUB'?'currency-active':'bg-white text-slate-400 hover:bg-slate-50'}`;
+            
+            const flag = getFlag(db.subName);
+            document.getElementById('btn-sub').innerText = cur === 'SUB' ? `${flag} ${db.subName}` : '外幣';
             document.getElementById('tab-add-title').innerText = `📝 新增支出 (${cur==='TWD'?'台幣':db.subName})`;
             refreshUI(false);
         }
