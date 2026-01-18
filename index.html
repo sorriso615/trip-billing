@@ -2,809 +2,575 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 專業互動記帳系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TripSplit 2026 雲端共編版</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* 14. 字體規範 */
-        :root { font-size: 16px; }
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; font-size: 16px; }
-        input, select, button, p, span, div { font-size: 16px; }
-        
-        /* 14. 日期加大彩色標示 */
-        .date-header { font-size: 1.4rem !important; font-weight: 900; color: #1e40af; background: #dbeafe; padding: 4px 12px; border-radius: 8px; margin-top: 15px; display: inline-block; }
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-        /* 3. 響應式佈局 450px:1fr */
+    <style>
+        /* 全域設定 */
+        :root { font-size: 16px; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        
+        /* 隱藏捲軸但保留功能 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 電腦版設定 */
         @media (min-width: 1024px) {
-            .app-container { display: grid; grid-template-columns: 450px 1fr; gap: 24px; }
-            .sticky-panel { position: sticky; top: 20px; height: calc(100vh - 40px); overflow-y: auto; }
+            .app-container { display: grid; grid-template-columns: 420px 1fr; gap: 24px; }
+            .sticky-panel { position: sticky; top: 20px; height: fit-content; }
+            /* 電腦版 Header 固定在上方 */
+            header.main-header { position: sticky; top: 0; z-index: 50; }
         }
 
-        /* 頁籤顏色與樣式 (4, 5, 6, 7, 8, 9, 10, 11) */
-        .tab-purple { border: 2px solid #a855f7 !important; border-left: 8px solid #a855f7 !important; }
-        .tab-darkgrey { border: 2px solid #4b5563 !important; border-left: 8px solid #4b5563 !important; }
-        .tab-red { border: 2px solid #ef4444 !important; border-left: 8px solid #ef4444 !important; }
-        .tab-orange { border: 2px solid #f97316 !important; border-left: 8px solid #f97316 !important; }
-        .tab-yellow { border: 2px solid #eab308 !important; border-left: 8px solid #eab308 !important; }
-        .tab-green { border: 2px solid #22c55e !important; border-left: 8px solid #22c55e !important; }
-        .tab-blue { border: 2px solid #3b82f6 !important; border-left: 8px solid #3b82f6 !important; }
+        /* 手機版優化核心 (解決擋路問題) */
+        @media (max-width: 1024px) {
+            /* 1. Header 改為不固定，隨頁面捲動 */
+            header.main-header { position: relative !important; margin-bottom: 10px; padding: 12px !important; }
+            
+            /* 2. 將三個公帳數據強制改為橫向排列 (省空間) */
+            #public-stats-grid { 
+                display: grid !important; 
+                grid-template-columns: repeat(3, 1fr) !important; 
+                gap: 4px !important;
+                padding-top: 8px !important;
+                margin-top: 8px;
+                border-top: 1px solid #e2e8f0;
+            }
+            /* 縮小手機版字體 */
+            #public-stats-grid p:first-child { font-size: 11px !important; color: #64748b; margin-bottom: 0; }
+            #public-stats-grid p:last-child { font-size: 15px !important; margin-top: 0; }
 
-        details > summary { list-style: none; cursor: pointer; padding: 15px; font-weight: bold; background: white; border-radius: 8px; transition: 0.3s; }
-        details[open] > summary { border-bottom: 1px solid #eee; border-radius: 8px 8px 0 0; }
+            /* 3. 加大頁籤按鈕間距，避免誤觸 */
+            #main-tabs { gap: 12px !important; padding-bottom: 5px; }
+            
+            /* 4. 防止 iOS 輸入框放大 */
+            input, select, textarea { font-size: 16px !important; }
+        }
         
-        .currency-active { background-color: #3b82f6 !important; color: white !important; transform: scale(1.05); }
-        .sealed-mode .btn-edit, .sealed-mode .btn-delete, .sealed-mode .btn-submit { display: none !important; }
-        
-        /* 2. 餘額字體顯示 */
-        .balance-text { font-size: 2.2rem; font-weight: 900; color: #f59e0b; }
-        .income-text { color: #10b981; }
-        .expense-text { color: #ef4444; }
-
-        /* 列表明細字體 (14) */
-        .detail-item { font-size: 1.15rem; }
-        .sub-detail { font-size: 0.95rem; color: #64748b; }
-/* 修正手機版頁籤擠在一起的問題 */
-@media (max-width: 1024px) {
-    .flex.gap-2.mb-6.overflow-x-auto {
-        gap: 12px !important; /* 強制增加按鈕之間的間距 */
-        padding-bottom: 8px;  /* 增加底部空間防止貼齊內容 */
-    }
-
-    /* 如果您的按鈕是用 flex 佈局，這樣可以確保它們均分或留有呼吸空間 */
-    .flex.gap-2.mb-6 button {
-        white-space: nowrap; /* 防止文字換行 */
-        margin-right: 4px;   /* 額外的右側間距 */
-    }
-}
-
+        .currency-active { background-color: #2563eb !important; color: white !important; border-color: #2563eb !important; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="p-4 lg:p-6" lang="zh-TW">
+<body class="p-3 lg:p-8 pb-20">
 
-<div id="app">
-    <section id="login-page" class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-2xl mt-10">
-        <h1 class="text-3xl font-black text-center mb-8 text-indigo-700">TripSplit 2026 旅遊記帳</h1>
+    <div id="loading-screen" class="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-slate-500 font-bold">正在同步雲端資料...</p>
+    </div>
+
+    <div id="login-page" class="max-w-md mx-auto bg-white p-6 lg:p-8 rounded-2xl shadow-xl mt-4 lg:mt-10">
+        <h1 class="text-2xl lg:text-3xl font-black text-center text-blue-600 mb-2">TripSplit 2026</h1>
+        <p class="text-center text-slate-400 mb-6 text-sm">多人旅遊雲端記帳・自動同步</p>
         
         <div class="space-y-4">
-            <input type="text" id="login-id" class="w-full p-4 border-2 rounded-xl focus:border-indigo-500 outline-none" placeholder="帳簿 ID (LocalStorage 記憶)">
-            <input type="password" id="login-pass" class="w-full p-4 border-2 rounded-xl" placeholder="帳簿密碼">
+            <div>
+                <label class="block text-sm font-bold text-slate-600 mb-1">📘 帳簿 ID</label>
+                <input type="text" id="login-id" placeholder="輸入 ID (例如: Tokyo2026)" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition">
+            </div>
+
+            <button onclick="checkBookExist()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition active:scale-95">進入帳簿</button>
             
-            <div id="new-book-zone" class="hidden p-6 bg-slate-50 border-2 border-dashed rounded-2xl space-y-4">
-                <p class="text-indigo-600 font-bold">✨ 建立新帳簿：</p>
-                <input type="text" id="new-members" class="w-full p-3 border rounded-lg" placeholder="成員名單 (例如: 阿強,小明,美美，首位為管理員)">
-                <input type="text" id="new-foreign-name" class="w-full p-3 border rounded-lg" placeholder="設置外幣名稱 (例如: 日幣, USD)">
-                <input type="password" id="secure-code" class="w-full p-3 border-2 border-red-300 rounded-lg" placeholder="安全密碼 (建立新帳簿時，請輸入安全驗證碼即可開始使用)">
-                <button onclick="createNewBook()" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold hover:bg-indigo-700">確認開新帳簿</button>
-            </div>
+            <div id="identity-zone" class="hidden animate-fade-in mt-6 pt-6 border-t border-dashed border-slate-200">
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <label class="block text-sm font-bold text-blue-800 mb-2">👤 選擇身分</label>
+                    <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-3"></select>
+                    
+                    <input type="password" id="login-pass" placeholder="🔑 帳簿密碼" class="w-full p-3 border rounded-xl mb-3">
+                    <div id="admin-pass-input-box" class="hidden">
+                        <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-300 bg-orange-50 mb-3 text-orange-800">
+                    </div>
+                    
+                    <label class="flex items-center gap-2 mb-3 text-sm text-slate-600">
+                        <input type="checkbox" id="remember-me" checked> 記住我 (下次自動登入)
+                    </label>
 
-            <div id="identity-zone" class="hidden space-y-4 border-t pt-6">
-                <p class="text-sm font-bold text-slate-500">選擇您的身分：</p>
-                <select id="user-select" class="w-full p-4 border-2 rounded-xl font-bold bg-yellow-50"></select>
-                <div id="admin-pass-input-box" class="hidden">
-                    <input type="password" id="admin-login-pass" class="w-full p-4 border-2 border-purple-400 rounded-xl" placeholder="管理員專屬密碼">
+                    <button onclick="lockIdentityAndEnter()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold shadow hover:bg-green-600 transition">確認登入</button>
                 </div>
-                <button onclick="lockIdentityAndEnter()" class="w-full bg-indigo-600 text-white p-5 rounded-xl font-black text-xl shadow-lg">鎖定身分並進入帳簿</button>
             </div>
 
-            <button id="check-id-btn" onclick="checkBookExist()" class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold">進入帳簿</button>
+            <div id="new-book-zone" class="hidden animate-fade-in mt-6 pt-6 border-t border-dashed border-slate-200">
+                <h3 class="font-black text-lg mb-3 text-slate-700">🆕 建立新帳簿</h3>
+                <div class="space-y-3">
+                    <input type="password" id="secure-code" placeholder="設定帳簿密碼" class="w-full p-3 border rounded-xl">
+                    <input type="text" id="new-foreign-name" placeholder="外幣名稱 (如: 日幣)" class="w-full p-3 border rounded-xl">
+                    <textarea id="new-members" placeholder="成員名單 (用逗號分隔，第一位為管理員)" class="w-full p-3 border rounded-xl h-24"></textarea>
+                    <button onclick="createNewBook()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition">立即開戶</button>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <details class="mt-12 border-t pt-6">
-            <summary class="text-center text-slate-400">📖 點擊展開功能與使用說明</summary>
-            <div class="p-4 text-slate-600 leading-relaxed space-y-3">
-                <p>● <span class="text-indigo-600 font-bold">【安全性】</span> 建立新帳簿需輸入驗證碼 <code class="bg-red-100 px-1">。名單第一位自動設為<span class="text-purple-600 font-bold">管理員</span>。</p>
-                <p>● <span class="text-orange-600 font-bold">【支付模式】</span> 分為「公帳」與「個人代墊」。<span class="text-red-600 font-bold">公帳</span>僅限管理員支用；<span class="text-green-600 font-bold">個人代墊</span>由成員墊付後，系統會自動計算分帳債務。</p>
-                <p>● <span class="text-blue-600 font-bold">【結算封存】</span> 管理員執行封存後，所有帳目按鈕將消失，防止結算後再次變動數據。</p>
+    <div id="main-content" class="hidden max-w-6xl mx-auto">
+        <header class="main-header bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-4 transition-all duration-300">
+            <div class="flex justify-between items-center mb-2 lg:mb-4 border-b pb-2 lg:pb-4">
+                <h1 class="text-xl lg:text-2xl font-black text-slate-800 flex items-center gap-2">
+                    <span id="display-user" class="text-sm lg:text-base font-normal bg-slate-100 px-2 py-1 rounded-lg"></span>
+                </h1>
+                <button onclick="logout()" class="text-xs lg:text-sm text-slate-400 font-bold px-3 py-1 border rounded-lg">登出</button>
             </div>
-        </details>
-    </section>
 
-    <main id="main-content" class="hidden">
-        <header class="bg-white p-6 rounded-2xl shadow-lg mb-6 sticky top-0 z-50">
-            <div class="flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div class="flex flex-col lg:flex-row gap-2 lg:gap-4 lg:items-center">
                 <div class="flex gap-2 w-full lg:w-auto">
-                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 currency-active">台幣 TWD</button>
-                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 bg-white text-slate-400">外幣 <span id="display-sub-name"></span></button>
+                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 bg-white text-slate-400 text-sm lg:text-base">台幣</button>
+                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 currency-active text-sm lg:text-base">外幣</button>
                 </div>
-                <div class="flex items-center gap-4">
-                    <span id="display-user" class="font-black text-lg text-slate-700"></span>
-                    <button onclick="logout()" class="text-sm text-red-500 underline">登出更換身分</button>
-                </div>
-            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 border-t pt-6 text-center">
-                <div><p class="font-bold text-slate-500">公帳收入 (+)</p><p id="sum-income" class="income-text font-black text-2xl">0</p></div>
-                <div><p class="font-bold text-slate-500">公帳支出 (-)</p><p id="sum-expense" class="expense-text font-black text-2xl">0</p></div>
-                <div><p class="font-bold text-slate-500">剩餘公帳餘額</p><p id="sum-balance" class="balance-text">0</p></div>
+                <div id="public-stats-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl">
+                    <div><p class="text-xs text-slate-500">預繳總額</p><p id="sum-income" class="text-lg lg:text-xl font-black text-green-600">$0</p></div>
+                    <div class="border-l border-slate-200 hidden lg:block"></div>
+                    <div><p class="text-xs text-slate-500">支出總額</p><p id="sum-expense" class="text-lg lg:text-xl font-black text-red-600">$0</p></div>
+                    <div class="border-l border-slate-200 hidden lg:block"></div>
+                    <div><p class="text-xs text-slate-500">公帳餘額</p><p id="sum-balance" class="text-lg lg:text-xl font-black text-blue-600">$0</p></div>
+                </div>
             </div>
         </header>
 
         <div class="app-container">
-            <aside class="sticky-panel space-y-4">
-                <details open class="tab-purple bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary id="tab-add-title">新增支出(台幣)</summary>
-                    <div class="p-4 space-y-4">
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="date" id="exp-date" class="p-3 border rounded-lg w-full">
-                            <select id="exp-cat" class="p-3 border rounded-lg">
-                                <option>🍳 早餐</option><option>🍱 午餐</option><option>🍲 晚餐</option>
-                                <option>🍪 點心</option><option>🥤 飲料</option><option>🚗 交通</option>
-                                <option>🏨 住宿</option><option>🛍️ 購物</option><option>🏷️ 其他</option>
+            <aside class="sticky-panel space-y-4 lg:space-y-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 id="tab-add-title" class="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">📝 新增支出</h2>
+                    <div class="space-y-3">
+                        <input type="date" id="exp-date" class="w-full p-3 bg-slate-50 border-0 rounded-xl font-bold text-slate-600">
+                        <div class="grid grid-cols-3 gap-2">
+                            <select id="exp-cat" class="p-3 bg-slate-50 rounded-xl font-bold text-center">
+                                <option>🍽️</option><option>🚗</option><option>🏠</option><option>🎫</option><option>🛍️</option><option>🍹</option>
                             </select>
+                            <input type="text" id="exp-title" placeholder="項目名稱" class="col-span-2 p-3 bg-slate-50 rounded-xl font-bold">
                         </div>
-                        <input type="text" id="exp-title" class="w-full p-4 border rounded-xl" placeholder="消費內容 (例如: 拉麵)" lang="zh-TW">
-                        <input type="number" id="exp-amt" class="w-full p-4 border rounded-xl text-2xl font-black text-indigo-600" placeholder="金額">
+                        <input type="number" id="exp-amt" placeholder="金額" class="w-full p-4 bg-slate-50 rounded-xl font-black text-xl text-blue-600 text-center placeholder-slate-300">
                         
-                        <div class="bg-slate-50 p-4 rounded-xl border">
-                            <label class="text-xs font-bold text-slate-400">支付路徑：</label>
-                            <select id="exp-path" class="w-full p-3 border rounded-lg mt-2" onchange="togglePayerSelection()">
-                                <option value="public" id="opt-public-pay">💰 公帳支付 (限管理員)</option>
-                                <option value="advance">👤 個人代墊</option>
-                            </select>
-                            <div id="payer-select-div" class="hidden mt-3">
-                                <label class="text-xs font-bold">代墊成員：</label>
-                                <select id="payer-member" class="w-full p-3 border rounded-lg"></select>
+                        <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-xs font-bold text-indigo-800">支付方式</label>
+                                <select id="exp-path" onchange="togglePayerSelection()" class="text-sm p-1 rounded bg-white border-0 font-bold text-indigo-600">
+                                    <option id="opt-public-pay" value="public">公帳餘額支付</option>
+                                    <option value="advance">個人代墊 (私帳)</option>
+                                </select>
                             </div>
+                            
+                            <div id="payer-select-div" class="hidden mb-3 animate-fade-in">
+                                <label class="text-xs font-bold text-slate-500">誰先墊錢？</label>
+                                <select id="payer-member" class="w-full p-2 mt-1 rounded border text-sm font-bold"></select>
+                            </div>
+
+                            <label class="text-xs font-bold text-indigo-800 mb-2 block">分攤成員 (預設全員)</label>
+                            <div id="splitters-grid" class="grid grid-cols-3 gap-2 text-sm"></div>
                         </div>
 
-                        <div class="border-t pt-3">
-                            <p class="text-xs font-bold text-slate-400 mb-3">分帳成員 (可勾選)：</p>
-                            <div id="splitters-grid" class="grid grid-cols-3 gap-2"></div>
-                        </div>
+                        <button onclick="addRecord()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-black text-lg shadow-lg hover:bg-slate-900 transition active:scale-95">確認記帳</button>
+                    </div>
+                </div>
 
-                        <button onclick="addRecord()" class="btn-submit w-full bg-purple-600 text-white py-4 rounded-xl font-black text-xl shadow-lg">確認送出帳目</button>
+                <details id="admin-fund-tab" class="group bg-green-50 p-4 rounded-2xl border border-green-100">
+                    <summary class="font-bold text-green-800 cursor-pointer flex justify-between items-center list-none">
+                        <span>💰 公帳預繳 (入金)</span><span class="text-green-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <div class="mt-4 space-y-3">
+                        <input type="date" id="fund-date" class="w-full p-2 rounded border">
+                        <input type="number" id="fund-amt" placeholder="每人預繳金額" class="w-full p-3 rounded border font-bold text-center">
+                        <button onclick="addFundRecord()" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow hover:bg-green-700">確認入帳</button>
                     </div>
                 </details>
 
-                <details id="admin-fund-tab" class="tab-darkgrey bg-white rounded-xl shadow-md overflow-hidden hidden">
-                    <summary>💰 公帳預繳 (管理員專區)</summary>
-                    <div class="p-4 space-y-4">
-                        <input type="date" id="fund-date" class="w-full p-3 border rounded-lg">
-                        <input type="number" id="fund-amt" class="w-full p-4 border rounded-xl font-black" placeholder="全員每人預繳金額">
-                        <button onclick="addFundRecord()" class="btn-submit w-full bg-slate-800 text-white py-4 rounded-xl font-bold">全員預繳入帳</button>
-                    </div>
-                </details>
-
-                <details id="admin-setting-tab" class="tab-darkgrey bg-white rounded-xl shadow-md overflow-hidden hidden">
-                    <summary>⚙️ 資料設定 (管理員專區)</summary>
-                    <div class="p-4 space-y-4">
-                        <div class="space-y-2">
-                            <label class="text-xs font-bold">編修成員名單 (逗號隔開)：</label>
-                            <input type="text" id="set-members" class="w-full p-2 border rounded">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold">外幣名稱：</label>
-                                <input type="text" id="set-sub-name" class="w-full p-2 border rounded">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold">匯率 (1外幣=?台幣)：</label>
-                                <input type="number" id="set-rate" class="w-full p-2 border rounded" step="0.001">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold">帳簿密碼：</label>
-                                <input type="password" id="set-book-pass" class="w-full p-2 border rounded">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold">管理員密碼：</label>
-                                <input type="password" id="set-admin-pass" class="w-full p-2 border rounded">
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-xs font-bold">管理權轉移：</label>
-                            <select id="set-manager" class="w-full p-2 border rounded"></select>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="updateSettings()" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold">確認修改設定</button>
-                            <button onclick="deleteAllData()" class="bg-red-100 text-red-600 px-4 rounded-lg font-bold">全清</button>
-                        </div>
+                <details id="admin-setting-tab" class="group bg-slate-100 p-4 rounded-2xl">
+                    <summary class="font-bold text-slate-600 cursor-pointer flex justify-between items-center list-none">
+                        <span>⚙️ 設定</span><span class="text-slate-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div><label>成員</label><input type="text" id="set-members" class="w-full p-2 rounded border"></div>
+                        <div><label>幣別</label><input type="text" id="set-sub-name" class="w-full p-2 rounded border"></div>
+                        <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border" step="0.001"></div>
+                        <div><label>管理員</label><select id="set-manager" class="w-full p-2 rounded border"></select></div>
+                        <button onclick="updateSettings()" class="w-full bg-blue-600 text-white py-2 rounded font-bold">儲存</button>
+                        <button onclick="toggleSeal()" class="w-full bg-orange-500 text-white py-2 rounded font-bold">封存/解封</button>
                     </div>
                 </details>
             </aside>
 
-            <section class="space-y-6">
-                <details class="tab-red bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary>📊 個人結算流水帳</summary>
-                    <div class="p-4">
-                        <div class="flex gap-1 mb-4 bg-slate-100 p-1 rounded-lg">
-                            <button onclick="switchLedgerTab('pub')" id="lt-pub" class="flex-1 py-2 rounded-md font-bold bg-white shadow-sm">公帳往來</button>
-                            <button onclick="switchLedgerTab('adv')" id="lt-adv" class="flex-1 py-2 rounded-md font-bold text-slate-500">個人代墊</button>
-                        </div>
-                        <div class="flex justify-end mb-2">
-                            <button onclick="toggleSort()" class="text-xs bg-slate-200 px-3 py-1 rounded-full">切換日期排序</button>
-                        </div>
-                        <div id="ledger-content" class="space-y-2"></div>
+            <main>
+                <div id="main-tabs" class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
+                    <button onclick="switchTab('pub', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md">📊 公帳明細</button>
+                    <button onclick="switchTab('adv', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">⚡ 個人代墊</button>
+                    <button onclick="switchTab('my', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">📒 個人帳目</button>
+                    <button onclick="switchTab('final', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">🏁 結算報告</button>
+                </div>
+
+                <div id="panel-pub" class="space-y-6 animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <div class="bg-green-50 p-3 font-bold text-green-800 rounded-t-2xl">📥 預繳紀錄</div>
+                        <div id="income-list" class="divide-y divide-slate-100"></div>
                     </div>
-                </details>
-
-                <details class="tab-orange bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary>💰 公帳收入明細</summary>
-<div class="p-2 border-b text-right"><button onclick="toggleSort()" class="text-xs bg-slate-200 px-3 py-1 rounded-full">切換日期排序</button></div>
-                    <div id="income-list" class="p-4"></div>
-                </details>
-
-                <details class="tab-yellow bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary>💸 公帳支付明細</summary>
-<div class="p-2 border-b text-right"><button onclick="toggleSort()" class="text-xs bg-slate-200 px-3 py-1 rounded-full">切換日期排序</button></div>
-                    <div id="public-exp-list" class="p-4"></div>
-                </details>
-
-                <details class="tab-green bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary>🤝 個人代墊明細</summary>
-                    <div class="p-4">
-                        <div class="flex gap-1 mb-4 bg-slate-100 p-1 rounded-lg">
-                            <button onclick="switchAdvSubTab('all')" id="at-all" class="px-6 py-2 rounded-md font-bold bg-white shadow-sm">全部明細</button>
-                            <button onclick="switchAdvSubTab('me')" id="at-me" class="...">與我相關</button>
-<button onclick="toggleSort()" class="ml-auto text-xs bg-white px-3 py-1 rounded shadow-sm">切換日期排序</button>
-                        </div>
-                        <div id="adv-list" class="p-4"></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <div class="bg-red-50 p-3 font-bold text-red-800 rounded-t-2xl">📤 支出紀錄</div>
+                        <div id="public-exp-list" class="divide-y divide-slate-100"></div>
                     </div>
-                </details>
+                </div>
 
-                <details class="tab-blue bg-white rounded-xl shadow-md overflow-hidden">
-                    <summary>🏁 最終結算報告</summary>
-                    <div class="p-4 space-y-6">
-                        <div class="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                            <button onclick="switchSettleMode('TWD')" id="sm-twd" class="flex-1 py-2 rounded-md font-bold bg-white">台幣</button>
-                            <button onclick="switchSettleMode('SUB')" id="sm-sub" class="flex-1 py-2 rounded-md font-bold">外幣</button>
-                            <button onclick="switchSettleMode('MIX')" id="sm-mix" class="flex-1 py-2 rounded-md font-bold">匯率合併 (MIX)</button>
-                        </div>
-                        <div id="settle-content" class="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100 min-h-[200px]"></div>
-                        <div id="seal-admin-zone" class="hidden text-center border-t pt-6">
-                            <button id="btn-seal" onclick="toggleSeal()" class="bg-red-600 text-white px-10 py-4 rounded-full font-black shadow-xl">啟動結算封存</button>
-                        </div>
+                <div id="panel-adv" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-slate-100">
+                    <div class="bg-orange-50 p-3 font-bold text-orange-800 rounded-t-2xl">⚡ 代墊列表</div>
+                    <div id="adv-list" class="divide-y divide-slate-100"></div>
+                </div>
+
+                <div id="panel-my" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-slate-100">
+                    <div class="bg-indigo-50 p-3 font-bold text-indigo-800 rounded-t-2xl">📒 我的帳目</div>
+                    <div id="ledger-content" class="divide-y divide-slate-100 p-4 space-y-2"></div>
+                </div>
+
+                <div id="panel-final" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm p-4 border border-slate-100">
+                    <h3 class="text-xl font-black text-slate-800 mb-4">🏁 結算報告</h3>
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="SMode='TWD';refreshUI(false)" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">台幣</button>
+                        <button onclick="SMode='SUB';refreshUI(false)" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">外幣</button>
+                        <button onclick="SMode='MIX';refreshUI(false)" class="flex-1 py-2 bg-blue-100 rounded text-sm font-bold text-blue-700">混合(轉台幣)</button>
                     </div>
-                </details>
-            </section>
+                    <div id="settle-content" class="space-y-4"></div>
+                </div>
+            </main>
         </div>
-    </main>
-</div>
+    </div>
 
-<script>
-/** 12. 資安防護 **/
-const safe = (str) => String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    <script>
+        // 0. Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzM7T1UWb1MxsE5O1w_lsoMp4sC-wT-v0",
+            authDomain: "project-2641836624074325409.firebaseapp.com",
+            databaseURL: "https://project-2641836624074325409-default-rtdb.firebaseio.com",
+            projectId: "project-2641836624074325409",
+            storageBucket: "project-2641836624074325409.firebasestorage.app",
+        };
 
-/** 核心資料庫結構 **/
-let db = {
-    id: "", pass: "", members: [], manager: "", adminPass: "",
-    subName: "外幣", rate: 1.0, isSealed: false,
-    items: [] // {id, date, cat, title, amt, cur, type(public/advance/fund), payer, splitters[]}
-};
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const rdb = firebase.database();
 
-let currentUser = "";
-let currentCur = "TWD";
-let LMode = "pub"; // 流水帳分頁
-let ASubMode = "all"; // 代墊明細分頁
-let SMode = "TWD"; // 結算分頁
-let sortDesc = true;
+        let db = { items: [], members: [] };
+        let currentUser = "";
+        let currentCur = "SUB";
+        let SMode = 'MIX';
 
-window.onload = () => {
-    const lastId = localStorage.getItem('ts_last_id');
-    if (lastId) document.getElementById('login-id').value = lastId;
-    document.getElementById('exp-date').valueAsDate = new Date();
-    document.getElementById('fund-date').valueAsDate = new Date();
-};
+        // 1. 自動登入與初始化
+        window.onload = function() {
+            tryAutoLogin();
+        };
 
-/** 1. 登入邏輯 **/
-function checkBookExist() {
-    const id = document.getElementById('login-id').value;
-    if (!id) return alert("請輸入帳簿 ID");
-    const saved = localStorage.getItem(`ts_book_${id}`);
-    
-    if (saved) {
-        db = JSON.parse(saved);
-        document.getElementById('new-book-zone').classList.add('hidden');
-        document.getElementById('identity-zone').classList.remove('hidden');
-        document.getElementById('check-id-btn').classList.add('hidden');
-        renderUserSelect();
-    } else {
-        document.getElementById('new-book-zone').classList.remove('hidden');
-        document.getElementById('identity-zone').classList.add('hidden');
-        document.getElementById('check-id-btn').classList.add('hidden');
-    }
-}
+        function tryAutoLogin() {
+            const savedId = localStorage.getItem('trip_last_id');
+            const savedUser = localStorage.getItem('trip_last_user');
+            const savedPass = localStorage.getItem('trip_last_pass');
 
-function createNewBook() {
-    const id = document.getElementById('login-id').value;
-    const pass = document.getElementById('login-pass').value;
-    const membersRaw = document.getElementById('new-members').value;
-    const sc = document.getElementById('secure-code').value;
-
-    if (!id || !pass || !membersRaw) return alert("成員名單與帳簿資訊為必填！");
-    if (sc !== 'djes.tyc-2026') return alert("安全驗證碼錯誤！");
-
-    db.id = id;
-    db.pass = pass;
-    db.members = membersRaw.split(/[,，]/).map(m => m.trim()).filter(m => m);
-    db.manager = db.members[0];
-    db.subName = document.getElementById('new-foreign-name').value || "外幣";
-    
-    save();
-    alert("帳簿建立成功！");
-    checkBookExist();
-}
-
-function renderUserSelect() {
-    const sel = document.getElementById('user-select');
-    sel.innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
-    const lastUser = localStorage.getItem(`ts_last_user_${db.id}`);
-    if (lastUser) sel.value = lastUser;
-    
-    sel.onchange = () => {
-        document.getElementById('admin-pass-input-box').classList.toggle('hidden', sel.value !== db.manager || !db.adminPass);
-    };
-    sel.onchange();
-}
-
-function lockIdentityAndEnter() {
-    const selected = document.getElementById('user-select').value;
-    const passInput = document.getElementById('login-pass').value;
-
-    if (passInput !== db.pass) return alert("帳簿密碼錯誤！");
-
-    if (selected === db.manager) {
-        if (!db.adminPass) {
-            const p = prompt("首次以管理員身分登入，請設定「管理員密碼」：");
-            if (!p) return;
-            db.adminPass = p;
-            save();
-        } else {
-            if (document.getElementById('admin-login-pass').value !== db.adminPass) return alert("管理員密碼錯誤！");
+            if (savedId && savedUser && savedPass) {
+                document.getElementById('loading-screen').classList.remove('hidden');
+                rdb.ref('books/' + savedId).once('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.pass === savedPass) {
+                        db = data;
+                        if (!db.items) db.items = [];
+                        currentUser = savedUser;
+                        initApp();
+                    } else {
+                        // 登入失效
+                        document.getElementById('loading-screen').classList.add('hidden');
+                        localStorage.removeItem('trip_last_pass');
+                    }
+                });
+            }
         }
-    }
 
-    currentUser = selected;
-    localStorage.setItem('ts_last_id', db.id);
-    localStorage.setItem(`ts_last_user_${db.id}`, currentUser);
-    initApp();
-}
+        function checkBookExist() {
+            const id = document.getElementById('login-id').value.trim();
+            if (!id) return alert("請輸入帳簿 ID");
 
-/** 2. 應用程式初始化 **/
-function initApp() {
-    document.getElementById('login-page').classList.add('hidden');
-    document.getElementById('main-content').classList.remove('hidden');
-    document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理員)' : ''}`;
-    document.getElementById('display-sub-name').innerText = db.subName;
-
-    // 初始化輸入選單
-    document.getElementById('payer-member').innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
-    document.getElementById('splitters-grid').innerHTML = db.members.map(m => `
-        <label class="flex items-center gap-1 p-2 bg-slate-50 rounded border">
-            <input type="checkbox" value="${m}" checked> ${safe(m)}
-        </label>
-    `).join('');
-
-    if (currentUser === db.manager) {
-        document.getElementById('admin-fund-tab').classList.remove('hidden');
-        document.getElementById('admin-setting-tab').classList.remove('hidden');
-        document.getElementById('seal-admin-zone').classList.remove('hidden');
-        document.getElementById('opt-public-pay').disabled = false;
-        
-        // 設定區預填
-        document.getElementById('set-members').value = db.members.join(',');
-        document.getElementById('set-sub-name').value = db.subName;
-        document.getElementById('set-rate').value = db.rate;
-        document.getElementById('set-book-pass').value = db.pass;
-        document.getElementById('set-admin-pass').value = db.adminPass;
-        document.getElementById('set-manager').innerHTML = db.members.map(m => `<option value="${m}" ${m===db.manager?'selected':''}>${m}</option>`).join('');
-    } else {
-        document.getElementById('opt-public-pay').disabled = true;
-        document.getElementById('exp-path').value = "advance";
-        togglePayerSelection();
-    }
-
-    refreshUI();
-}
-
-/** 核心計算與渲染 (13, 14, 15) **/
-function refreshUI() {
-    if (!db.id) return; // 修正：將 currentBookId 改為 db.id
-    save(); 
-
-    // 1. 計算公帳總收入 (預繳)
-    const totalIncome = db.items
-        .filter(i => i.type === 'fund' && i.cur === currentCur)
-        .reduce((sum, i) => sum + i.amt, 0);
-
-    // 2. 計算公帳總支出
-    const totalSpend = db.items
-        .filter(i => i.type === 'public' && i.cur === currentCur)
-        .reduce((sum, i) => sum + i.amt, 0);
-
-    // 3. 更新上方卡片數字 (對應您 HTML 中的 sum-income, sum-expense, sum-balance)
-    document.getElementById('sum-income').innerText = `$${Math.round(totalIncome)}`;
-    document.getElementById('sum-expense').innerText = `$${Math.round(totalSpend)}`;
-    document.getElementById('sum-balance').innerText = `$${Math.round(totalIncome - totalSpend)}`;
-
-    // 4. 重新渲染所有列表
-    renderIncomeList();
-    renderPublicExpList(); // 修正：您的檔案名稱是這個
-    renderAdvList();
-    renderLedger();
-    renderSettleReport();
-}
-
-/** 4, 5. 輸入功能 **/
-function addRecord() {
-    if (db.isSealed) return;
-    const amt = parseFloat(document.getElementById('exp-amt').value);
-    const title = document.getElementById('exp-title').value;
-    const date = document.getElementById('exp-date').value;
-    const splitters = Array.from(document.querySelectorAll('#splitters-grid input:checked')).map(i => i.value);
-
-    if (!amt || !title || !date || splitters.length === 0) return alert("資料輸入不完整！");
-
-    const path = document.getElementById('exp-path').value;
-    const payer = (path === 'public') ? '公帳' : document.getElementById('payer-member').value;
-
-    db.items.push({
-        id: Date.now(),
-        date, cat: document.getElementById('exp-cat').value,
-        title: safe(title),
-        amt, cur: currentCur,
-        type: path, payer, splitters
-    });
-
-    save(); refreshUI();
-    document.getElementById('exp-amt').value = "";
-    document.getElementById('exp-title').value = "";
-}
-
-function addFundRecord() {
-    if (db.isSealed) return;
-    const perAmt = parseFloat(document.getElementById('fund-amt').value);
-    const date = document.getElementById('fund-date').value;
-    if (!perAmt || !date) return alert("請輸入預繳金額與日期");
-
-    // 統一邏輯：amt 存儲「總金額」
-    db.items.push({
-        id: Date.now(),
-        date, cat: "💰", title: "全員公帳預繳",
-        amt: perAmt * db.members.length, // 這裏存總額：每人200 * 8人 = 1600
-        cur: currentCur,
-        type: 'fund', payer: "全員", splitters: [...db.members]
-    });
-
-    save(); refreshUI();
-    document.getElementById('fund-amt').value = "";
-}
-
-/** 6. 個人結算流水帳 (核心) **/
-function renderLedger() {
-    const list = db.items.filter(i => i.cur === currentCur).sort(sortFn);
-    let html = "";
-
-    if (LMode === 'pub') {
-        let plusHtml = ""; let minusHtml = "";
-        let plusSum = 0; let minusSum = 0;
-
-        list.forEach(i => {
-            if (i.type === 'fund' && i.splitters.includes(currentUser)) {
-                const myShare = i.amt / i.splitters.length;
-                plusHtml += `<div class="flex justify-between text-sm py-1 border-b"><span>${i.date} 預繳公帳</span><span class="text-green-600">+$${Math.round(myShare)}</span></div>`;
-                plusSum += myShare;
-            }
-            if (i.type === 'public' && i.splitters.includes(currentUser)) {
-                const myShare = i.amt / i.splitters.length;
-                minusHtml += `<div class="flex justify-between text-sm py-1 border-b"><span>${i.date} ${i.title}</span><span class="text-red-600">-$${Math.round(myShare)}</span></div>`;
-                minusSum += myShare;
-            }
-        });
-        html = `
-            <div class="p-3 bg-green-50 rounded-lg">
-                <p class="font-bold text-green-700">預繳公帳 (+)</p>${plusHtml || '<p class="text-xs text-slate-400">無紀錄</p>'}
-                <p class="text-right font-black mt-1">小計: $${Math.round(plusSum)}</p>
-            </div>
-            <div class="p-3 bg-red-50 rounded-lg mt-3">
-                <p class="font-bold text-red-700">公帳分攤 (-)</p>${minusHtml || '<p class="text-xs text-slate-400">無紀錄</p>'}
-                <p class="text-right font-black mt-1">小計: $${Math.round(minusSum)}</p>
-            </div>
-            <div class="text-center p-4 bg-slate-800 text-yellow-400 rounded-xl mt-4 font-black text-xl">
-                最終結餘: $${Math.round(plusSum - minusSum)}
-            </div>
-        `;
-    } else {
-        let plusHtml = ""; let minusHtml = "";
-        let plusSum = 0; let minusSum = 0;
-
-        list.forEach(i => {
-            if (i.type === 'advance') {
-                const share = i.amt / i.splitters.length;
-                if (i.payer === currentUser) {
-                    plusHtml += `<div class="flex justify-between text-sm py-1 border-b"><span>${i.date} ${i.title}</span><span class="text-blue-600">+$${Math.round(i.amt)}</span></div>`;
-                    plusSum += i.amt;
-                } 
-                if (i.splitters.includes(currentUser)) {
-                    minusHtml += `<div class="flex justify-between text-sm py-1 border-b"><span>${i.date} ${i.title} (${i.payer}墊)</span><span class="text-orange-600">-$${Math.round(share)}</span></div>`;
-                    minusSum += share;
+            rdb.ref('books/' + id).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    db = data;
+                    if (!db.items) db.items = [];
+                    renderUserSelect();
+                    document.getElementById('new-book-zone').classList.add('hidden');
+                    document.getElementById('identity-zone').classList.remove('hidden');
+                } else {
+                    document.getElementById('new-book-zone').classList.remove('hidden');
+                    document.getElementById('identity-zone').classList.add('hidden');
+                    alert("帳簿不存在，請建立新帳簿");
                 }
+            });
+        }
+
+        function createNewBook() {
+            const id = document.getElementById('login-id').value.trim();
+            const pass = document.getElementById('secure-code').value.trim();
+            const members = document.getElementById('new-members').value.split(/[,，]/).map(m => m.trim()).filter(m => m);
+            const subName = document.getElementById('new-foreign-name').value.trim() || "外幣";
+
+            if (!id || !pass || members.length < 1) return alert("資料不完整");
+
+            db = { id, pass, members, subName, manager: members[0], adminPass: "1234", rate: 0.22, items: [], isSealed: false };
+            save();
+            alert(`帳簿 [${id}] 建立成功！`);
+            checkBookExist();
+        }
+
+        function lockIdentityAndEnter() {
+            const selected = document.getElementById('user-select').value;
+            const passInput = document.getElementById('login-pass').value.trim();
+            const remember = document.getElementById('remember-me').checked;
+
+            if (passInput !== db.pass) return alert("密碼錯誤");
+            if (selected === db.manager) {
+                const adminInput = document.getElementById('admin-login-pass').value.trim();
+                if (adminInput !== db.adminPass) return alert("管理員密碼錯誤");
             }
-        });
-        html = `
-            <div class="p-3 bg-blue-50 rounded-lg">
-                <p class="font-bold text-blue-700">我的代墊 (+)</p>${plusHtml || '<p class="text-xs text-slate-400">無紀錄</p>'}
-                <p class="text-right font-black mt-1">小計: $${Math.round(plusSum)}</p>
-            </div>
-            <div class="p-3 bg-orange-50 rounded-lg mt-3">
-                <p class="font-bold text-orange-700">代墊分帳 (-)</p>${minusHtml || '<p class="text-xs text-slate-400">無紀錄</p>'}
-                <p class="text-right font-black mt-1">小計: $${Math.round(minusSum)}</p>
-            </div>
-            <div class="text-center p-4 bg-slate-800 text-yellow-400 rounded-xl mt-4 font-black text-xl">
-                最終結餘: $${Math.round(plusSum - minusSum)}
-            </div>
-        `;
-    }
-    document.getElementById('ledger-content').innerHTML = html;
-}
 
-/** 7, 8, 9. 各項明細渲染 **/
-function renderIncomeList() {
-    const list = db.items.filter(i => i.type === 'fund' && i.cur === currentCur).sort(sortFn);
-    let html = ""; let lastDate = "";
-    list.forEach(i => {
-        if(i.date !== lastDate) { html += `<div class="date-header">${i.date}</div>`; lastDate = i.date; }
-        
-        const perAmt = Math.round(i.amt / i.splitters.length);
-        const totalAmt = Math.round(i.amt);
-        
-        html += `
-           <div class="flex justify-between items-center p-4 bg-white border-b hover:bg-slate-50">
-                <div class="detail-item">
-                    <span class="text-slate-500 text-sm">${i.cat} ${i.title}</span>
-                    <div class="font-bold text-lg text-slate-800">${perAmt}/人</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-black text-2xl text-green-600">$${totalAmt}</div>
-                    <div class="flex justify-end gap-3 mt-1">
-                        ${currentUser === db.manager ? `
-                            <button onclick="editItem(${i.id})" class="text-blue-500 text-sm font-medium">[編修]</button>
-                            <button onclick="deleteItem(${i.id})" class="text-red-400 text-sm font-medium">刪除</button>
-                        ` : ""}
+            currentUser = selected;
+            
+            // 儲存自動登入資訊
+            if (remember) {
+                localStorage.setItem('trip_last_id', db.id);
+                localStorage.setItem('trip_last_user', currentUser);
+                localStorage.setItem('trip_last_pass', db.pass);
+            }
+
+            initApp();
+        }
+
+        function initApp() {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+
+            document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管)' : ''}`;
+            document.getElementById('btn-sub').innerText = db.subName;
+            
+            document.getElementById('exp-date').valueAsDate = new Date();
+            document.getElementById('fund-date').valueAsDate = new Date();
+
+            const payerSelect = document.getElementById('payer-member');
+            payerSelect.innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
+            
+            const splittersGrid = document.getElementById('splitters-grid');
+            splittersGrid.innerHTML = db.members.map(m => `
+                <label class="flex items-center gap-1 p-2 bg-slate-50 rounded border cursor-pointer">
+                    <input type="checkbox" value="${m}" checked> ${m}
+                </label>
+            `).join('');
+
+            if (currentUser !== db.manager) {
+                document.getElementById('admin-fund-tab').remove();
+                document.getElementById('admin-setting-tab').remove();
+                const pubOpt = document.getElementById('opt-public-pay');
+                pubOpt.disabled = true;
+                pubOpt.innerText += " (限管理)";
+                document.getElementById('exp-path').value = 'advance';
+                togglePayerSelection();
+            } else {
+                document.getElementById('set-members').value = db.members.join(',');
+                document.getElementById('set-sub-name').value = db.subName;
+                document.getElementById('set-rate').value = db.rate;
+                const mgrSel = document.getElementById('set-manager');
+                mgrSel.innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
+                mgrSel.value = db.manager;
+            }
+
+            startSync();
+            refreshUI();
+        }
+
+        function save() { if (db.id) rdb.ref('books/' + db.id).set(db); }
+        function startSync() {
+            if (!db.id) return;
+            rdb.ref('books/' + db.id).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && JSON.stringify(data) !== JSON.stringify(db)) {
+                    db = data;
+                    if (!db.items) db.items = [];
+                    refreshUI(false); 
+                }
+            });
+        }
+
+        function refreshUI(shouldSave = true) {
+            if (shouldSave) save();
+            if (!db.items) db.items = [];
+
+            const currentItems = db.items.filter(i => i.cur === currentCur);
+            const totalFund = currentItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
+            const totalSpend = currentItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
+            
+            document.getElementById('sum-income').innerText = `$${Math.round(totalFund)}`;
+            document.getElementById('sum-expense').innerText = `$${Math.round(totalSpend)}`;
+            document.getElementById('sum-balance').innerText = `$${Math.round(totalFund - totalSpend)}`;
+
+            renderList('income-list', i => i.type === 'fund' && i.cur === currentCur, 'text-green-600', '+');
+            renderList('public-exp-list', i => i.type === 'public' && i.cur === currentCur, 'text-red-600', '-');
+            renderAdvList();
+            renderLedger();
+            renderSettleReport();
+        }
+
+        function renderList(domId, filterFn, colorClass, sign) {
+            const list = db.items.filter(filterFn).sort((a,b) => b.date.localeCompare(a.date));
+            const html = list.map(i => `
+                <div class="flex justify-between items-center p-3 hover:bg-slate-50 cursor-pointer" onclick="editItem(${i.id})">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${i.cat || '📄'}</span>
+                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-slate-700">${i.title}</div></div>
                     </div>
+                    <div class="${colorClass} font-bold">${sign}$${Math.round(i.amt)}</div>
                 </div>
-            </div>
-        `;
-    });
-    document.getElementById('income-list').innerHTML = html || "<p class='p-4 text-slate-400'>暫無預繳資料</p>";
-}
-
-function renderPublicExpList() {
-    const list = db.items.filter(i => i.type === 'public' && i.cur === currentCur).sort(sortFn);
-    let html = ""; let lastDate = "";
-    list.forEach(i => {
-        const share = (i.amt / i.splitters.length).toFixed(0);
-        if(i.date !== lastDate) { html += `<div class="date-header">${i.date}</div>`; lastDate = i.date; }
-        html += `
-            <div class="flex justify-between items-center p-4 bg-white border-b">
-                <div class="detail-item">
-                    <span class="text-slate-500 text-sm">${i.cat} ${i.title}</span>
-                    <div class="font-bold text-lg text-slate-800">${share}/人</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-black text-2xl text-red-600">$${Math.round(i.amt)}</div>
-                    ${currentUser === db.manager ? `<button onclick="editItem(${i.id})" class="text-blue-500 btn-edit mr-3">[編修]</button><button onclick="deleteItem(${i.id})" class="text-red-500 btn-delete">刪除</button>` : ""}
-                </div>
-            </div>
-        `;
-    });
-    document.getElementById('public-exp-list').innerHTML = html || "<p class='p-4 text-slate-400'>暫無公帳支出</p>";
-}
-
-function renderAdvList() {
-    // 修正：使用 ASubMode 進行篩選
-    let list = db.items.filter(i => i.type === 'advance' && i.cur === currentCur);
-    if (ASubMode === 'me') {
-        list = list.filter(i => i.payer === currentUser || i.splitters.includes(currentUser));
-    }
-    list.sort(sortFn);
-
-    // 修正：按鈕呼叫 switchAdvSubTab 並同步 ASubMode 狀態
-    let html = "";
-    let lastDate = "";
-    list.forEach(i => {
-        if(i.date !== lastDate) { html += `<div class="date-header">${i.date}</div>`; lastDate = i.date; }
-        const perAmt = Math.round(i.amt / i.splitters.length);
-        
-        html += `
-            <div class="flex justify-between items-center p-4 bg-white border-b hover:bg-slate-50">
-                <div class="detail-item">
-                    <div class="text-slate-500 text-sm mb-1">${i.cat} ${i.title}</div>
-                    <div class="text-xs text-slate-400">代墊：${i.payer} | 分帳：${i.splitters.join(', ')}</div>
-                    <div class="font-bold text-lg text-slate-800">${perAmt}/人</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-black text-2xl text-red-600">$${Math.round(i.amt)}</div>
-                    <div class="flex justify-end gap-3 mt-1">
-                        ${currentUser === db.manager ? `
-                            <button onclick="editItem(${i.id})" class="text-blue-500 text-sm font-medium">[編修]</button>
-                            <button onclick="deleteItem(${i.id})" class="text-red-400 text-sm font-medium">刪除</button>
-                        ` : ""}
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    document.getElementById('adv-list').innerHTML = html || "<p class='p-4 text-slate-400'>暫無代墊紀錄</p>";
-}
-
-
-/** 10. 最終結算報告 (管理員退款邏輯版) **/
-function renderSettleReport() {
-    const results = {};
-    const members = db.members;
-    const managerName = db.manager || members[0]; // 預設第一個成員為管理員
-    
-    members.forEach(m => results[m] = { totalPaid: 0, totalCost: 0 });
-
-    db.items.forEach(i => {
-        let val = i.amt;
-        if (SMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
-        if (SMode === 'TWD' && i.cur !== 'TWD') return;
-        if (SMode === 'SUB' && i.cur !== 'SUB') return;
-
-        if (i.type === 'fund') {
-            const perFund = val / i.splitters.length;
-            i.splitters.forEach(m => { if(results[m]) results[m].totalPaid += perFund; });
-        } else if (i.type === 'public') {
-            const share = val / i.splitters.length;
-            i.splitters.forEach(m => { if(results[m]) results[m].totalCost += share; });
-        } else if (i.type === 'advance') {
-            if(results[i.payer]) results[i.payer].totalPaid += val;
-            const share = val / i.splitters.length;
-            i.splitters.forEach(m => { if(results[m]) results[m].totalCost += share; });
+            `).join('');
+            document.getElementById(domId).innerHTML = html || `<p class="p-4 text-center text-slate-300 text-sm">無資料</p>`;
         }
-    });
 
-    // 1. 建立報表表格
-    let html = `
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-slate-100 text-slate-600">
-                    <tr>
-                        <th class="p-2">成員</th>
-                        <th class="p-2 text-right">總付出(+)</th>
-                        <th class="p-2 text-right">總支出(-)</th>
-                        <th class="p-2 text-right">最終結餘</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    const netArr = [];
-    members.forEach(m => {
-        const bal = results[m].totalPaid - results[m].totalCost;
-        netArr.push({ name: m, bal: bal });
-        html += `
-            <tr class="border-b">
-                <td class="p-2 font-bold">${m} ${m === managerName ? '<span class="text-xs bg-orange-100 text-orange-600 px-1 rounded">保管人</span>' : ''}</td>
-                <td class="p-2 text-right text-green-600">$${Math.round(results[m].totalPaid)}</td>
-                <td class="p-2 text-right text-red-600">$${Math.round(results[m].totalCost)}</td>
-                <td class="p-2 text-right font-black ${bal >= 0 ? 'text-blue-600' : 'text-orange-600'}">
-                    ${bal >= 0 ? '+' : ''}${Math.round(bal)}
-                </td>
-            </tr>`;
-    });
-    html += `</tbody></table></div>`;
-
-    // 2. 計算支付清單 (包含管理員退公帳邏輯)
-    html += `
-        <div class="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-            <p class="font-black text-indigo-800 mb-3 underline">💸 結清支付指令：</p>
-            <div class="space-y-2">`;
-    
-    // 應收款的人 (結餘 > 0)
-    let receivers = netArr.filter(n => n.bal > 0.5).sort((a,b) => b.bal - a.bal);
-    // 應付款的人 (結餘 < 0)
-    let payers = netArr.filter(n => n.bal < -0.5).map(n => ({...n, bal: Math.abs(n.bal)})).sort((a,b) => b.bal - a.bal);
-
-    let logs = [];
-
-    // 先讓欠錢的人 (Payers) 把錢給 應收款的人 (Receivers)
-    payers.forEach(p => {
-        receivers.forEach(r => {
-            if (p.bal <= 0 || r.bal <= 0) return;
-            let transfer = Math.min(p.bal, r.bal);
-            logs.push(`📍 <b>${p.name}</b> ➡️ 給 <b>${r.name}</b>：<span class="text-blue-700 font-bold">$${Math.round(transfer)}</span>`);
-            p.bal -= transfer;
-            r.bal -= transfer;
-        });
-    });
-
-    // 如果最後還有 Receivers 沒拿到錢，且 Payers 都付清了，剩下的錢就是從「公帳餘額」出 (由管理員支付)
-    receivers.forEach(r => {
-        if (r.bal > 0.5 && r.name !== managerName) {
-            logs.push(`🏦 <b>${managerName} (退公帳)</b> ➡️ 給 <b>${r.name}</b>：<span class="text-green-700 font-bold">$${Math.round(r.bal)}</span>`);
+        function renderAdvList() {
+            const list = db.items.filter(i => i.type === 'advance' && i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
+            document.getElementById('adv-list').innerHTML = list.map(i => `
+                <div class="flex justify-between items-center p-3 border-l-4 border-orange-400 hover:bg-slate-50 cursor-pointer" onclick="editItem(${i.id})">
+                    <div><div class="text-xs text-slate-400">${i.date} <span class="bg-orange-100 text-orange-600 px-1 rounded">${i.payer}墊</span></div><div class="font-bold text-slate-700">${i.title}</div></div>
+                    <div class="text-blue-600 font-bold">$${Math.round(i.amt)}</div>
+                </div>
+            `).join('') || `<p class="p-4 text-center text-slate-300 text-sm">無資料</p>`;
         }
-    });
 
-    html += logs.length ? logs.map(l => `<div class="bg-white p-2 rounded shadow-sm border-l-4 border-blue-400 text-sm">${l}</div>`).join('') : "<p class='text-slate-400 italic text-center'>帳目已平衡</p>";
-    html += `</div></div>`;
-
-    document.getElementById('settle-content').innerHTML = html;
-}
-
-
-/** 功能輔助函數 **/
-function save() { localStorage.setItem(`ts_book_${db.id}`, JSON.stringify(db)); }
-function logout() { location.reload(); }
-function switchCurrency(c) {
-    currentCur = c;
-    document.getElementById('btn-twd').className = c==='TWD' ? 'flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 currency-active' : 'flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 bg-white';
-    document.getElementById('btn-sub').className = c==='SUB' ? 'flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 currency-active' : 'flex-1 lg:flex-none px-10 py-4 rounded-xl font-bold border-2 bg-white';
-    refreshUI();
-}
-function togglePayerSelection() {
-    document.getElementById('payer-select-div').classList.toggle('hidden', document.getElementById('exp-path').value === 'public');
-}
-function switchLedgerTab(m) { LMode = m; document.getElementById('lt-pub').className = m==='pub'?'flex-1 py-2 rounded-md font-bold bg-white shadow-sm':'flex-1 py-2 rounded-md font-bold text-slate-500'; document.getElementById('lt-adv').className = m==='adv'?'flex-1 py-2 rounded-md font-bold bg-white shadow-sm':'flex-1 py-2 rounded-md font-bold text-slate-500'; renderLedger(); }
-function switchAdvSubTab(m) { ASubMode = m; document.getElementById('at-all').className = m==='all'?'px-6 py-2 rounded-md font-bold bg-white shadow-sm':'px-6 py-2 rounded-md font-bold text-slate-500'; document.getElementById('at-me').className = m==='me'?'px-6 py-2 rounded-md font-bold bg-white shadow-sm':'px-6 py-2 rounded-md font-bold text-slate-500'; renderAdvList(); }
-function switchSettleMode(m) { SMode = m; document.getElementById('sm-twd').className = m==='TWD'?'flex-1 py-2 rounded-md font-bold bg-white':'flex-1 py-2 rounded-md font-bold'; document.getElementById('sm-sub').className = m==='SUB'?'flex-1 py-2 rounded-md font-bold bg-white':'flex-1 py-2 rounded-md font-bold'; document.getElementById('sm-mix').className = m==='MIX'?'flex-1 py-2 rounded-md font-bold bg-white':'flex-1 py-2 rounded-md font-bold'; renderSettleReport(); }
-function toggleSort() { sortDesc = !sortDesc; refreshUI(); }
-function sortFn(a, b) { return sortDesc ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date); }
-
-function deleteItem(id) {
-    if (db.isSealed) return;
-    if (confirm("⚠️ 確定要刪除這筆帳目嗎？") && confirm("📢 這是第二次確認：刪除後將無法復原！")) {
-        db.items = db.items.filter(i => i.id !== id);
-        save(); refreshUI();
-    }
-}
-
-function editItem(id) {
-    if (db.isSealed) return;
-    const item = db.items.find(i => i.id == id); // 注意這裡用 == 相容數字或字串 ID
-    if (!item) return;
-
-    // 1. 修改內容
-    const newTitle = prompt("請輸入修改後的內容：", item.title);
-    if (newTitle !== null) item.title = safe(newTitle);
-
-    // 2. 修改日期 (新增功能)
-    const newDate = prompt("請輸入日期 (格式: YYYY/MM/DD)：", item.date || "");
-    if (newDate !== null) item.date = newDate;
-
-    // 3. 處理金額連動
-    if (item.type === 'fund') {
-        const currentPerAmt = item.amt / item.splitters.length;
-        const newPerAmt = prompt("目前每人預繳 $" + currentPerAmt + "，請輸入「新每人金額」：", currentPerAmt);
-        
-        if (newPerAmt !== null) {
-            const perAmtValue = parseFloat(newPerAmt);
-            // 連動核心：總金額 = 每人金額 * 人數
-            item.amt = perAmtValue * item.splitters.length;
+        function renderLedger() {
+            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
+            let html = "";
+            list.forEach(i => {
+                if (i.splitters.includes(currentUser) || i.payer === currentUser) {
+                    const myShare = i.splitters.includes(currentUser) ? (i.amt / i.splitters.length) : 0;
+                    if (i.type === 'fund' && i.splitters.includes(currentUser)) {
+                        html += `<div class="flex justify-between p-3 border-b border-slate-100"><div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">預繳公帳</div></div><div class="text-green-600 font-bold">支出 $${Math.round(myShare)}</div></div>`;
+                    } else if (i.type !== 'fund' && myShare > 0) {
+                        html += `<div class="flex justify-between p-3 border-b border-slate-100"><div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">${i.title}</div></div><div class="text-red-400 font-bold">分攤 -$${Math.round(myShare)}</div></div>`;
+                    }
+                }
+            });
+            document.getElementById('ledger-content').innerHTML = html || `<p class="text-center text-slate-300 text-sm">無資料</p>`;
         }
-    } else {
-        const newAmt = prompt("請輸入修改後的總金額：", item.amt);
-        if (newAmt !== null) item.amt = parseFloat(newAmt);
-    }
 
-    save(); 
-    refreshUI();
-}
+        function renderSettleReport() {
+            const results = {};
+            db.members.forEach(m => results[m] = { paid: 0, cost: 0 });
+            db.items.forEach(i => {
+                let val = i.amt;
+                if (SMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
+                if (SMode === 'TWD' && i.cur !== 'TWD') return;
+                if (SMode === 'SUB' && i.cur !== 'SUB') return;
+                
+                const share = val / i.splitters.length;
+                if (i.type === 'fund') i.splitters.forEach(m => results[m].paid += share);
+                else if (i.type === 'public') i.splitters.forEach(m => results[m].cost += share);
+                else if (i.type === 'advance') { if(results[i.payer]) results[i.payer].paid += val; i.splitters.forEach(m => results[m].cost += share); }
+            });
 
-function updateSettings() {
-    db.members = document.getElementById('set-members').value.split(/[,，]/).map(m => m.trim()).filter(m => m);
-    db.subName = document.getElementById('set-sub-name').value;
-    db.rate = parseFloat(document.getElementById('set-rate').value);
-    db.pass = document.getElementById('set-book-pass').value;
-    db.adminPass = document.getElementById('set-admin-pass').value;
-    db.manager = document.getElementById('set-manager').value;
-    save(); alert("設定已更新！"); initApp();
-}
+            let html = `<table class="w-full text-sm text-left mb-4"><thead class="bg-slate-100"><tr><th class="p-2">成員</th><th class="p-2 text-right">結餘</th></tr></thead><tbody>`;
+            const netArr = [];
+            db.members.forEach(m => {
+                const bal = results[m].paid - results[m].cost;
+                netArr.push({ name: m, bal });
+                html += `<tr class="border-b"><td class="p-2 font-bold">${m}</td><td class="p-2 text-right font-black ${bal>=0?'text-blue-600':'text-red-500'}">${bal>=0?'+':''}${Math.round(bal)}</td></tr>`;
+            });
+            html += `</tbody></table>`;
 
-function toggleSeal() {
-    if (confirm(`確定要${db.isSealed ? '解除' : '執行'}結算封存嗎？${db.isSealed ? '' : '封存後將不可編修帳目！'}`)) {
-        db.isSealed = !db.isSealed;
-        save(); refreshUI();
-    }
-}
+            let receivers = netArr.filter(n => n.bal > 0.5).sort((a,b) => b.bal - a.bal);
+            let payers = netArr.filter(n => n.bal < -0.5).map(n => ({...n, bal: Math.abs(n.bal)})).sort((a,b) => b.bal - a.bal);
+            let logs = [];
+            payers.forEach(p => { receivers.forEach(r => {
+                if (p.bal <= 0 || r.bal <= 0) return;
+                let amt = Math.min(p.bal, r.bal);
+                logs.push(`📍 <b>${p.name}</b> ➡ ${r.name} <span class="text-blue-600 font-bold">$${Math.round(amt)}</span>`);
+                p.bal -= amt; r.bal -= amt;
+            });});
+            receivers.forEach(r => { if(r.bal > 0.5 && r.name !== db.manager) logs.push(`🏦 <b>${db.manager}(退)</b> ➡ ${r.name} <span class="text-green-600 font-bold">$${Math.round(r.bal)}</span>`); });
 
-function deleteAllData() {
-    if (confirm("🧨 確定要刪除「整本帳簿」所有資料嗎？") && confirm("二次確認：這會清空所有歷史紀錄且不可恢復！")) {
-        db.items = []; save(); refreshUI();
-    }
-}
-</script>
+            html += logs.length ? `<div class="space-y-2 text-sm">${logs.map(l=>`<div class="bg-slate-50 p-2 border rounded">${l}</div>`).join('')}</div>` : `<p class="text-center text-slate-400">帳目已平衡</p>`;
+            document.getElementById('settle-content').innerHTML = html;
+        }
+
+        function addRecord() {
+            if (db.isSealed) return alert("帳簿已封存");
+            const date = document.getElementById('exp-date').value;
+            const title = document.getElementById('exp-title').value.trim();
+            const amt = parseFloat(document.getElementById('exp-amt').value);
+            const cat = document.getElementById('exp-cat').value;
+            const type = document.getElementById('exp-path').value;
+            if (!date || !title || !amt) return alert("資料不全");
+            
+            const checkboxes = document.querySelectorAll('#splitters-grid input:checked');
+            const splitters = Array.from(checkboxes).map(c => c.value);
+            if (splitters.length === 0) return alert("請選擇分攤人");
+
+            db.items.push({ id: Date.now(), date, cat, title, amt, cur: currentCur, type, payer: type === 'advance' ? document.getElementById('payer-member').value : "公帳", splitters });
+            document.getElementById('exp-title').value = ""; document.getElementById('exp-amt').value = "";
+            refreshUI(); alert("已記錄");
+        }
+
+        function addFundRecord() {
+            const perAmt = parseFloat(document.getElementById('fund-amt').value);
+            const date = document.getElementById('fund-date').value;
+            if (!perAmt) return;
+            db.items.push({ id: Date.now(), date, cat: "💰", title: "全員公帳預繳", amt: perAmt * db.members.length, cur: currentCur, type: 'fund', payer: "全員", splitters: [...db.members] });
+            document.getElementById('fund-amt').value = ""; refreshUI(); alert("入金成功");
+        }
+
+        function editItem(id) {
+            if (db.isSealed) return;
+            const item = db.items.find(i => i.id == id);
+            if (!item) return;
+            if (currentUser !== db.manager && item.payer !== currentUser && !item.splitters.includes(currentUser)) return alert("無權修改");
+
+            const newTitle = prompt("修改名稱", item.title);
+            if (newTitle !== null) item.title = newTitle;
+            
+            if (item.type === 'fund') {
+                const oldPer = item.amt / item.splitters.length;
+                const newPer = prompt(`修改每人預繳 (目前$${oldPer})`, oldPer);
+                if (newPer !== null) item.amt = parseFloat(newPer) * item.splitters.length;
+            } else {
+                const newAmt = prompt("修改金額", item.amt);
+                if (newAmt !== null) item.amt = parseFloat(newAmt);
+            }
+            if (confirm("刪除此筆？")) db.items = db.items.filter(i => i.id != id);
+            refreshUI();
+        }
+
+        function renderUserSelect() {
+            const sel = document.getElementById('user-select');
+            sel.innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
+            sel.onchange = () => { document.getElementById('admin-pass-input-box').classList.toggle('hidden', sel.value !== db.manager); };
+            sel.onchange(); 
+        }
+
+        function togglePayerSelection() {
+            document.getElementById('payer-select-div').classList.toggle('hidden', document.getElementById('exp-path').value !== 'advance');
+        }
+
+        function switchCurrency(cur) {
+            currentCur = cur;
+            document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 ${cur==='TWD'?'currency-active':'bg-white text-slate-400'} text-sm lg:text-base`;
+            document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 ${cur==='SUB'?'currency-active':'bg-white text-slate-400'} text-sm lg:text-base`;
+            document.getElementById('tab-add-title').innerText = `📝 新增支出 (${cur==='TWD'?'台幣':db.subName})`;
+            refreshUI(false);
+        }
+
+        function switchTab(tabName, btn) {
+            ['panel-pub', 'panel-adv', 'panel-my', 'panel-final'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.className = "tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap");
+            btn.className = "tab-btn px-4 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md";
+            document.getElementById('panel-' + tabName).classList.remove('hidden');
+        }
+
+        function updateSettings() {
+            db.members = document.getElementById('set-members').value.split(',').map(m => m.trim());
+            db.subName = document.getElementById('set-sub-name').value;
+            db.rate = parseFloat(document.getElementById('set-rate').value);
+            db.manager = document.getElementById('set-manager').value;
+            save(); alert("已儲存"); location.reload();
+        }
+        function toggleSeal() { db.isSealed = !db.isSealed; save(); refreshUI(); alert(db.isSealed?"已封存":"已解封"); }
+        function logout() { localStorage.removeItem('trip_last_pass'); location.reload(); }
+    </script>
 </body>
 </html>
