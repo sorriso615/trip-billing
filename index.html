@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 穩定版</title>
+    <title>TripSplit 2026 最終修訂版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -95,8 +95,8 @@
             </div>
             <div class="flex flex-col lg:flex-row gap-4 lg:items-center">
                 <div class="flex gap-2 w-full lg:w-auto">
-                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all bg-white text-slate-400">🇹🇼 台幣</button>
-                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all currency-active">外幣</button>
+                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all">🇹🇼 台幣</button>
+                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all">外幣</button>
                 </div>
                 <div class="grid grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <div><p class="text-xs text-slate-400">公款收入</p><p id="sum-income" class="amt-text text-green-600">0</p></div>
@@ -110,7 +110,7 @@
             <aside class="sticky-panel mb-4">
                 <details id="add-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group" open>
                     <summary class="p-4 font-bold text-lg text-slate-800 cursor-pointer flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition">
-                        <span id="form-header-text">📝 新增支出/收入</span>
+                        <span id="form-header-text">📝 新增支出 (台幣)</span>
                         <span class="text-slate-400 arrow transition-transform duration-300">▼</span>
                     </summary>
                     <div class="p-6 pt-2 space-y-4 border-t border-slate-100">
@@ -158,6 +158,7 @@
                         <span>📊 公帳明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
                     <div class="p-4 border-t border-slate-100 space-y-4">
+                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
                         <div class="flex justify-between items-center"><h4 class="font-bold text-green-700">📥 公帳收入</h4></div>
                         <div id="income-list"></div>
                         <div class="flex justify-between items-center pt-4 border-t"><h4 class="font-bold text-red-700">📤 公帳支出</h4></div>
@@ -168,19 +169,28 @@
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>⚡ 個人代墊</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
-                    <div class="p-4 border-t border-slate-100"><div id="adv-list"></div></div>
+                    <div class="p-4 border-t border-slate-100">
+                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
+                        <div id="adv-list"></div>
+                    </div>
                 </details>
                 <details id="panel-pvt" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>👤 個人獨資</span><span class="text-slate-400 arrow transition-transform">▼</span>
+                        <span>👤 個人明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
-                    <div class="p-4 border-t border-slate-100"><div id="pvt-list"></div></div>
+                    <div class="p-4 border-t border-slate-100">
+                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
+                        <div id="pvt-list"></div>
+                    </div>
                 </details>
                 <details id="panel-my" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>📒 個人流水帳</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
-                    <div class="p-4 border-t border-slate-100"><div id="ledger-content" class="space-y-6"></div></div>
+                    <div class="p-4 border-t border-slate-100">
+                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
+                        <div id="ledger-content" class="space-y-6"></div>
+                    </div>
                 </details>
                 <details id="panel-stats" class="bg-white rounded-2xl shadow-sm border border-slate-200 group" ontoggle="if(this.open) renderStats()">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
@@ -222,7 +232,23 @@
                             <h4 class="font-bold text-slate-700">⚙️ 設定</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div><label>成員</label><input type="text" id="set-members" class="w-full p-2 rounded border mt-1"></div>
-                                <div><label>幣別名稱</label><input type="text" id="set-sub-name" class="w-full p-2 rounded border mt-1"></div>
+                                
+                                <div>
+                                    <label>幣別名稱 (快選)</label>
+                                    <div class="flex gap-2 mt-1">
+                                        <select onchange="updateSubNameBySelect(this.value)" class="w-1/3 p-2 rounded border bg-slate-50 text-center text-xs">
+                                            <option value="">選幣</option>
+                                            <option value="JPY">🇯🇵 日幣</option>
+                                            <option value="USD">🇺🇸 美金</option>
+                                            <option value="KRW">🇰🇷 韓元</option>
+                                            <option value="EUR">🇪🇺 歐元</option>
+                                            <option value="CNY">🇨🇳 人民幣</option>
+                                            <option value="THB">🇹🇭 泰銖</option>
+                                        </select>
+                                        <input type="text" id="set-sub-name" class="w-2/3 p-2 rounded border">
+                                    </div>
+                                </div>
+
                                 <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border mt-1" step="0.001"></div>
                                 <div><label>管理員</label><select id="set-manager" class="w-full p-2 rounded border mt-1"></select></div>
                                 <div><label>帳簿密碼</label><input type="text" id="set-book-pass" class="w-full p-2 rounded border mt-1"></div>
@@ -253,7 +279,13 @@
 
         let db = { items: [], members: [] };
         let currentUser = "";
-        let currentCur = "SUB";
+        
+        // 1. 預設改為台幣
+        let currentCur = "TWD"; 
+        
+        // 4. 新增排序狀態
+        let isSortDesc = true; 
+        
         let SMode = 'MIX';
         let chartInstance = null;
 
@@ -270,7 +302,7 @@
                     if (data && data.pass === savedPass) { 
                         db = data; 
                         if(!db.items) db.items = []; 
-                        if(!db.members) db.members = []; // 防呆
+                        if(!db.members) db.members = []; 
                         currentUser = savedUser; 
                         initApp(); 
                     } else {
@@ -292,7 +324,7 @@
                 if (data) {
                     db = data; 
                     if(!db.items) db.items = [];
-                    if(!db.members) db.members = []; // 防呆
+                    if(!db.members) db.members = [];
                     renderUserSelect();
                     document.getElementById('new-book-zone').classList.add('hidden');
                     document.getElementById('identity-zone').classList.remove('hidden');
@@ -304,11 +336,9 @@
             });
         }
 
-        // 修正後的建立帳簿功能：增加 .then 等待寫入完成
         function createNewBook() {
             const id = document.getElementById('login-id').value.trim();
             const pass = document.getElementById('secure-code').value.trim();
-            // 增強解析：支援逗號、頓號、換行、空格
             const members = document.getElementById('new-members').value.split(/[,，\n\s]+/).map(m=>m.trim()).filter(m=>m);
             const subName = document.getElementById('new-foreign-name').value.trim() || "外幣";
             
@@ -318,12 +348,10 @@
             
             document.getElementById('loading-mask').classList.remove('hidden');
             
-            // 寫入 Firebase
             rdb.ref('books/' + db.id).set(db)
                 .then(() => {
                     document.getElementById('loading-mask').classList.add('hidden');
                     alert("✅ 帳簿建立成功！請登入");
-                    // 寫入成功後，重新檢查並顯示登入介面
                     checkBookExist(); 
                 })
                 .catch(error => {
@@ -351,7 +379,6 @@
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('loading-mask').classList.add('hidden');
             
-            // 確保資料正確
             if(!db.members || db.members.length === 0) {
                 alert("警告：成員資料遺失，請聯繫管理員");
                 db.members = [currentUser || "Unknown"];
@@ -373,14 +400,15 @@
 
             document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理)' : ''}`;
             document.getElementById('btn-sub').innerText = `🌍 ${db.subName}`;
-            document.getElementById('form-header-text').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
+            
+            // 初始化時呼叫切換幣別，確保 UI 狀態正確 (TWD 為預設)
+            switchCurrency(currentCur);
+            
             document.getElementById('exp-date').valueAsDate = new Date();
             document.getElementById('fund-date').valueAsDate = new Date();
 
-            // 這裡是用來修復「成員選單空白」的關鍵
             const payerSelect = document.getElementById('payer-member');
             payerSelect.innerHTML = db.members.map(m=>`<option value="${m}">${m}</option>`).join('');
-            // 預設選自己
             if(db.members.includes(currentUser)) payerSelect.value = currentUser;
             
             const splittersGrid = document.getElementById('splitters-grid');
@@ -399,7 +427,7 @@
                 togglePayerSelection();
             }
 
-            startSync(); refreshUI();
+            startSync(); 
         }
 
         function save() { if (db.id) rdb.ref('books/' + db.id).set(db); }
@@ -449,9 +477,16 @@
             renderSettleReport();
         }
 
-        // --- 渲染列表邏輯 (與先前相同，略作精簡) ---
+        // 4. 排序邏輯修改
+        function toggleSort() {
+            isSortDesc = !isSortDesc;
+            refreshUI(false);
+        }
+
         function renderLists() {
-            const list = db.items.filter(i => i.cur === currentCur).sort((a, b) => b.date.localeCompare(a.date));
+            // 根據 isSortDesc 決定排序
+            const sortFactor = isSortDesc ? 1 : -1;
+            const list = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
             const inc = list.filter(i => i.type === 'fund');
             document.getElementById('income-list').innerHTML = inc.map(i => {
@@ -495,6 +530,7 @@
             document.getElementById('exp-amt').value = item.amt;
             document.getElementById('exp-path').value = item.type;
             
+            // 編輯時標題保持單純
             document.getElementById('form-header-text').innerText = "✏️ 編輯項目";
             document.getElementById('btn-submit').innerText = "確認修改";
             document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-lg shadow-lg";
@@ -514,12 +550,14 @@
             document.getElementById('edit-id').value = "";
             document.getElementById('exp-title').value = "";
             document.getElementById('exp-amt').value = "";
-            document.getElementById('form-header-text').innerText = "📝 新增支出/收入";
+            
+            // 2. 重置時恢復動態標題
+            document.getElementById('form-header-text').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
+            
             document.getElementById('btn-submit').innerText = "確認記帳";
             document.getElementById('btn-submit').className = "flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-lg shadow-lg";
             document.getElementById('btn-cancel-edit').classList.add('hidden');
             document.querySelectorAll('input[name="splitter"]').forEach(b => b.checked = true);
-            // 不自動收合，方便連續記帳
         }
 
         function handleRecordSubmit() {
@@ -545,7 +583,6 @@
                 if (splitters.length === 0) return alert("請至少選擇一位分攤成員");
             }
 
-            // 確保代墊人有值
             let payer = (type === 'public') ? "公帳" : (type === 'personal' ? currentUser : document.getElementById('payer-member').value);
             if(type === 'advance' && !payer) payer = currentUser;
 
@@ -582,7 +619,10 @@
         }
 
         function renderLedger() {
-            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
+            // 4. 排序邏輯修改
+            const sortFactor = isSortDesc ? 1 : -1;
+            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
+            
             let htmls = { pf: "", pc: "", ap: "", ac: "", pp: "" };
             let sums = { pf: 0, pc: 0, ap: 0, ac: 0, pp: 0 };
             let nets = { pub: 0, adv: 0 };
@@ -729,7 +769,13 @@
         }
 
         function switchSettleMode(m) { SMode = m; refreshUI(false); }
-        function switchCurrency(c) { currentCur = c; refreshUI(false); 
+        function switchCurrency(c) { 
+            currentCur = c; 
+            
+            // 2. 切換幣別時，同時更新標題文字
+            document.getElementById('form-header-text').innerText = `📝 新增支出 (${c==='TWD'?'台幣':db.subName})`;
+
+            refreshUI(false); 
             document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='TWD'?'currency-active':'bg-white text-slate-400'}`;
             document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='SUB'?'currency-active':'bg-white text-slate-400'}`;
         }
@@ -752,6 +798,16 @@
             const p = parseFloat(document.getElementById('fund-amt').value); if(!p)return; 
             db.items.push({id:Date.now(), date:document.getElementById('fund-date').value, cat:"💰", title:"全員公帳預繳", amt:p*db.members.length, cur:currentCur, type:'fund', payer:"全員", splitters:[...db.members]}); refreshUI(); alert("入帳成功");
         }
+        
+        // 5. 幣別快選輔助功能
+        function updateSubNameBySelect(val) {
+            if(!val) return;
+            document.getElementById('set-sub-name').value = val;
+            // 順便給個參考匯率 (僅參考)
+            const rates = { 'JPY': 0.22, 'USD': 31.5, 'EUR': 34.5, 'KRW': 0.024, 'CNY': 4.4, 'THB': 0.9 };
+            if(rates[val]) document.getElementById('set-rate').value = rates[val];
+        }
+
         function updateSettings() {
             if(db.isSealed) return alert("帳簿已封存");
             db.members = document.getElementById('set-members').value.split(/[,，]/).map(m=>m.trim()).filter(m=>m);
