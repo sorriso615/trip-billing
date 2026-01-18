@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 最終修訂版</title>
+    <title>TripSplit 2026 最終結算版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -211,6 +211,7 @@
                             <button id="btn-settle-sub" onclick="switchSettleMode('SUB')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">外幣</button>
                             <button id="btn-settle-mix" onclick="switchSettleMode('MIX')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">混合</button>
                         </div>
+                        <div id="settle-info-box" class="mb-4 text-sm text-slate-500 bg-slate-50 p-3 rounded border"></div>
                         <div id="settle-content" class="space-y-6"></div>
                     </div>
                 </details>
@@ -508,7 +509,6 @@
 
         function listRow(i, sub, color, amt, canEdit) {
             const editBtn = (!db.isSealed && canEdit) ? `<button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : '';
-            // 4. 新增項目小圖示 (取分類的第一個字元，通常是Emoji)
             const icon = i.cat ? i.cat.split(' ')[0] : '💸';
             return `<div class="flex justify-between p-3 border-b border-slate-100 bg-white items-center">
                 <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-lg text-slate-700">${icon} ${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(${sub})</span></div></div>
@@ -715,8 +715,9 @@
             document.getElementById('btn-settle-sub').className = btnClass + (SMode==='SUB' ? active : inactive);
             document.getElementById('btn-settle-mix').className = btnClass + (SMode==='MIX' ? active : inactive);
 
-            const results = {};
-            db.members.forEach(m => results[m] = { income: 0, expense: 0 });
+            const balances = {};
+            db.members.forEach(m => balances[m] = 0);
+            let potBalance = 0;
 
             db.items.forEach(i => {
                 let val = i.amt;
@@ -724,27 +725,51 @@
                 if (SMode === 'TWD' && i.cur !== 'TWD') return;
                 if (SMode === 'SUB' && i.cur !== 'SUB') return;
 
-                const share = val / i.splitters.length;
-                if (i.type === 'fund') i.splitters.forEach(m => results[m].income += share);
-                else if (i.type === 'public') i.splitters.forEach(m => results[m].expense += share);
+                const share = val / (i.splitters.length || 1);
+
+                if (i.type === 'fund') {
+                    potBalance += val;
+                    if (i.payer === '全員') {
+                         // 假設全員均分支付
+                         i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] += share; });
+                    } else if (balances[i.payer] !== undefined) {
+                         balances[i.payer] += val;
+                    }
+                }
+                else if (i.type === 'public') {
+                    potBalance -= val;
+                    i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] -= share; });
+                }
                 else if (i.type === 'advance') {
-                    if(results[i.payer]) results[i.payer].income += val;
-                    i.splitters.forEach(m => results[m].expense += share);
+                    if(balances[i.payer] !== undefined) balances[i.payer] += val;
+                    i.splitters.forEach(m => { if(balances[m]!==undefined) balances[m] -= share; });
                 }
             });
 
+            // 關鍵邏輯：將公帳餘額(potBalance) 反向歸屬給管理員
+            // 若 potBalance > 0 (剩錢)，管理員欠大家 (Balance -= pot)
+            // 若 potBalance < 0 (透支)，大家欠管理員 (Balance -= -pot => Balance += pot)
+            if (db.manager && balances[db.manager] !== undefined) {
+                balances[db.manager] -= potBalance;
+            }
+
+            // 顯示公帳水位提示
+            const potText = potBalance >= 0 ? 
+                `💰 公帳剩餘 ${Math.round(potBalance)} (視為管理員需退還)` : 
+                `💸 公帳透支 ${Math.round(Math.abs(potBalance))} (視為管理員代墊)`;
+            document.getElementById('settle-info-box').innerHTML = `<b>${db.manager}</b> 負責公帳。<br>${potText}`;
+
             let html = `<table class="w-full text-sm text-center">
-                <thead class="bg-slate-800 text-white"><tr><th class="p-2">成員</th><th class="p-2">墊付</th><th class="p-2">消費</th><th class="p-2">結餘</th></tr></thead>
+                <thead class="bg-slate-800 text-white"><tr><th class="p-2">成員</th><th class="p-2">最終結餘</th></tr></thead>
                 <tbody>`;
+            
             const netArr = [];
             db.members.forEach(m => {
-                const bal = results[m].income - results[m].expense;
+                const bal = balances[m];
                 netArr.push({ name: m, bal });
                 html += `<tr class="border-b bg-white">
                     <td class="p-2 font-bold">${m}</td>
-                    <td class="p-2 text-green-600">${Math.round(results[m].income)}</td>
-                    <td class="p-2 text-red-600">${Math.round(results[m].expense)}</td>
-                    <td class="p-2 font-black ${bal>=0?'text-blue-600':'text-red-600'}">${bal>=0?'+':''}${Math.round(bal)}</td>
+                    <td class="p-2 font-black text-lg ${bal>=0?'text-blue-600':'text-red-600'}">${bal>=0?'+':''}${Math.round(bal)}</td>
                 </tr>`;
             });
             html += `</tbody></table>`;
@@ -752,14 +777,17 @@
             let receivers = netArr.filter(n => n.bal > 0.5).sort((a,b) => b.bal - a.bal);
             let payers = netArr.filter(n => n.bal < -0.5).map(n => ({...n, bal: Math.abs(n.bal)})).sort((a,b) => b.bal - a.bal);
             let logs = [];
-            payers.forEach(p => { receivers.forEach(r => {
-                if (p.bal <= 0 || r.bal <= 0) return;
-                let amt = Math.min(p.bal, r.bal);
-                logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：${Math.round(amt)}`);
-                p.bal -= amt; r.bal -= amt;
-            });});
-            receivers.forEach(r => { if(r.bal > 0.5 && r.name !== db.manager) logs.push(`<b>${db.manager}(退公帳)</b> ➡️ <b>${r.name}</b>：${Math.round(r.bal)}`); });
-            html += `<div class="mt-4 space-y-2 text-sm">${logs.map(l=>`<div class="bg-white p-2 border rounded shadow-sm border-l-4 border-blue-500">${l}</div>`).join('')}</div>`;
+            
+            payers.forEach(p => { 
+                receivers.forEach(r => {
+                    if (p.bal <= 0 || r.bal <= 0) return;
+                    let amt = Math.min(p.bal, r.bal);
+                    logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：${Math.round(amt)}`);
+                    p.bal -= amt; r.bal -= amt;
+                });
+            });
+
+            html += `<div class="mt-4 space-y-2 text-sm">${logs.map(l=>`<div class="bg-white p-3 border rounded shadow-sm border-l-4 border-blue-500 flex items-center gap-2">💸 ${l}</div>`).join('')}</div>`;
             document.getElementById('settle-content').innerHTML = html;
         }
 
@@ -791,7 +819,6 @@
             db.items.push({id:Date.now(), date:document.getElementById('fund-date').value, cat:"💰", title:"全員公帳預繳", amt:p*db.members.length, cur:currentCur, type:'fund', payer:"全員", splitters:[...db.members]}); refreshUI(); alert("入帳成功");
         }
         
-        // 3. 增加東南亞幣別匯率參考
         function updateSubNameBySelect(val) {
             if(!val) return;
             document.getElementById('set-sub-name').value = val;
