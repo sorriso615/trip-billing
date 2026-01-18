@@ -2,93 +2,82 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TripSplit 2026 雲端共編版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripSplit 2026 專業互動記帳系統 (精算版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        /* 全域設定 */
+        /* 基礎樣式 */
         :root { font-size: 16px; }
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; font-size: 16px; }
+        input, select, button, p, span, div { font-size: 16px; }
         
-        /* 隱藏捲軸但保留功能 */
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* 電腦版設定 */
+        .currency-active { background-color: #3b82f6 !important; color: white !important; border-color: #2563eb !important; }
+        
+        /* 電腦版樣式 */
         @media (min-width: 1024px) {
-            .app-container { display: grid; grid-template-columns: 420px 1fr; gap: 24px; }
+            .app-container { display: grid; grid-template-columns: 450px 1fr; gap: 24px; }
             .sticky-panel { position: sticky; top: 20px; height: fit-content; }
-            /* 電腦版 Header 固定在上方 */
-            header.main-header { position: sticky; top: 0; z-index: 50; }
+            header.sticky { position: sticky; top: 0; z-index: 50; }
         }
 
-        /* 手機版優化核心 (解決擋路問題) */
+        /* 手機版樣式修正 */
         @media (max-width: 1024px) {
-            /* 1. Header 改為不固定，隨頁面捲動 */
-            header.main-header { position: relative !important; margin-bottom: 10px; padding: 12px !important; }
+            header.sticky { position: relative !important; top: auto !important; margin-bottom: 10px; padding: 12px !important; }
             
-            /* 2. 將三個公帳數據強制改為橫向排列 (省空間) */
-            #public-stats-grid { 
+            #public-stats-zone { 
                 display: grid !important; 
                 grid-template-columns: repeat(3, 1fr) !important; 
-                gap: 4px !important;
-                padding-top: 8px !important;
-                margin-top: 8px;
+                gap: 5px !important;
                 border-top: 1px solid #e2e8f0;
+                padding-top: 10px !important;
+                margin-top: 10px;
             }
-            /* 縮小手機版字體 */
-            #public-stats-grid p:first-child { font-size: 11px !important; color: #64748b; margin-bottom: 0; }
-            #public-stats-grid p:last-child { font-size: 15px !important; margin-top: 0; }
-
-            /* 3. 加大頁籤按鈕間距，避免誤觸 */
-            #main-tabs { gap: 12px !important; padding-bottom: 5px; }
+            #public-stats-zone div { border-left: none !important; }
+            #public-stats-zone p:first-child { font-size: 12px !important; color: #64748b; }
+            #public-stats-zone p:last-child { font-size: 16px !important; }
             
-            /* 4. 防止 iOS 輸入框放大 */
-            input, select, textarea { font-size: 16px !important; }
+            .flex.gap-2.mb-6 { gap: 8px; overflow-x: auto; padding-bottom: 5px; }
+            .flex.gap-2.mb-6 button { white-space: nowrap; flex: none; padding: 8px 12px; font-size: 14px; }
         }
-        
-        .currency-active { background-color: #2563eb !important; color: white !important; border-color: #2563eb !important; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="p-3 lg:p-8 pb-20">
+<body class="p-4 lg:p-8">
 
-    <div id="loading-screen" class="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center hidden">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-slate-500 font-bold">正在同步雲端資料...</p>
+    <div id="loading-mask" class="fixed inset-0 bg-white z-[60] flex items-center justify-center hidden">
+        <div class="text-blue-600 font-bold text-xl animate-pulse">正在同步資料...</div>
     </div>
 
-    <div id="login-page" class="max-w-md mx-auto bg-white p-6 lg:p-8 rounded-2xl shadow-xl mt-4 lg:mt-10">
-        <h1 class="text-2xl lg:text-3xl font-black text-center text-blue-600 mb-2">TripSplit 2026</h1>
-        <p class="text-center text-slate-400 mb-6 text-sm">多人旅遊雲端記帳・自動同步</p>
+    <div id="login-page" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
+        <h1 class="text-3xl font-black text-center text-blue-600 mb-2">TripSplit 2026</h1>
+        <p class="text-center text-slate-400 mb-8">多人旅遊雲端記帳</p>
         
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">📘 帳簿 ID</label>
-                <input type="text" id="login-id" placeholder="輸入 ID (例如: Tokyo2026)" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition">
+                <label class="block text-sm font-bold text-slate-600 mb-1">📘 帳簿代碼 (Book ID)</label>
+                <input type="text" id="login-id" placeholder="例如: Tokyo2026" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition">
             </div>
 
-            <button onclick="checkBookExist()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition active:scale-95">進入帳簿</button>
+            <button onclick="checkBookExist()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition active:scale-95">🚀 進入帳簿</button>
             
             <div id="identity-zone" class="hidden animate-fade-in mt-6 pt-6 border-t border-dashed border-slate-200">
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <label class="block text-sm font-bold text-blue-800 mb-2">👤 選擇身分</label>
+                    <label class="block text-sm font-bold text-blue-800 mb-2">👤 請問您是誰？</label>
                     <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-3"></select>
                     
-                    <input type="password" id="login-pass" placeholder="🔑 帳簿密碼" class="w-full p-3 border rounded-xl mb-3">
+                    <input type="password" id="login-pass" placeholder="🔑 輸入帳簿密碼" class="w-full p-3 border rounded-xl mb-3">
+                    
                     <div id="admin-pass-input-box" class="hidden">
-                        <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-300 bg-orange-50 mb-3 text-orange-800">
+                        <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼 (預設1234)" class="w-full p-3 border rounded-xl border-orange-300 bg-orange-50 mb-3 text-orange-800 placeholder-orange-300">
                     </div>
                     
                     <label class="flex items-center gap-2 mb-3 text-sm text-slate-600">
-                        <input type="checkbox" id="remember-me" checked> 記住我 (下次自動登入)
+                        <input type="checkbox" id="auto-login-check" checked> 保持登入 (下次免輸入)
                     </label>
 
-                    <button onclick="lockIdentityAndEnter()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold shadow hover:bg-green-600 transition">確認登入</button>
+                    <button onclick="lockIdentityAndEnter()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold shadow hover:bg-green-600 transition">確認身分並登入</button>
                 </div>
             </div>
 
@@ -97,7 +86,8 @@
                 <div class="space-y-3">
                     <input type="password" id="secure-code" placeholder="設定帳簿密碼" class="w-full p-3 border rounded-xl">
                     <input type="text" id="new-foreign-name" placeholder="外幣名稱 (如: 日幣)" class="w-full p-3 border rounded-xl">
-                    <textarea id="new-members" placeholder="成員名單 (用逗號分隔，第一位為管理員)" class="w-full p-3 border rounded-xl h-24"></textarea>
+                    <textarea id="new-members" placeholder="成員名單 (用逗號分隔，例如: 小明, 小華, 阿強)" class="w-full p-3 border rounded-xl h-24"></textarea>
+                    <p class="text-xs text-slate-400">* 第一位成員將預設為管理員</p>
                     <button onclick="createNewBook()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition">立即開戶</button>
                 </div>
             </div>
@@ -105,35 +95,37 @@
     </div>
 
     <div id="main-content" class="hidden max-w-6xl mx-auto">
-        <header class="main-header bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-4 transition-all duration-300">
-            <div class="flex justify-between items-center mb-2 lg:mb-4 border-b pb-2 lg:pb-4">
-                <h1 class="text-xl lg:text-2xl font-black text-slate-800 flex items-center gap-2">
-                    <span id="display-user" class="text-sm lg:text-base font-normal bg-slate-100 px-2 py-1 rounded-lg"></span>
-                </h1>
-                <button onclick="logout()" class="text-xs lg:text-sm text-slate-400 font-bold px-3 py-1 border rounded-lg">登出</button>
+        <header class="bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-6 sticky top-0 z-50 transition-all duration-300">
+            <div class="flex justify-between items-center mb-4 border-b pb-4">
+                <div>
+                    <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                        <span id="display-user" class="text-base font-normal bg-slate-100 px-2 py-1 rounded-lg"></span>
+                    </h1>
+                </div>
+                <button onclick="logout()" class="text-sm text-slate-400 hover:text-red-500 font-bold px-3 py-1 border rounded-lg hover:bg-red-50 transition">登出</button>
             </div>
 
-            <div class="flex flex-col lg:flex-row gap-2 lg:gap-4 lg:items-center">
+            <div class="flex flex-col lg:flex-row gap-4 lg:items-center">
                 <div class="flex gap-2 w-full lg:w-auto">
-                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 bg-white text-slate-400 text-sm lg:text-base">台幣</button>
-                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 currency-active text-sm lg:text-base">外幣</button>
+                    <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all bg-white text-slate-400">🇹🇼 台幣 TWD</button>
+                    <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all currency-active">🇯🇵 外幣</button>
                 </div>
 
-                <div id="public-stats-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl">
-                    <div><p class="text-xs text-slate-500">預繳總額</p><p id="sum-income" class="text-lg lg:text-xl font-black text-green-600">$0</p></div>
+                <div id="public-stats-zone" class="grid grid-cols-1 lg:grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl">
+                    <div><p class="text-xs text-slate-500">公帳預繳總額</p><p id="sum-income" class="text-xl font-black text-green-600">$0</p></div>
                     <div class="border-l border-slate-200 hidden lg:block"></div>
-                    <div><p class="text-xs text-slate-500">支出總額</p><p id="sum-expense" class="text-lg lg:text-xl font-black text-red-600">$0</p></div>
+                    <div><p class="text-xs text-slate-500">公帳支出總額</p><p id="sum-expense" class="text-xl font-black text-red-600">$0</p></div>
                     <div class="border-l border-slate-200 hidden lg:block"></div>
-                    <div><p class="text-xs text-slate-500">公帳餘額</p><p id="sum-balance" class="text-lg lg:text-xl font-black text-blue-600">$0</p></div>
+                    <div><p class="text-xs text-slate-500">公帳剩餘餘額</p><p id="sum-balance" class="text-xl font-black text-blue-600">$0</p></div>
                 </div>
             </div>
         </header>
 
         <div class="app-container">
-            <aside class="sticky-panel space-y-4 lg:space-y-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+            <aside class="sticky-panel space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 id="tab-add-title" class="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">📝 新增支出</h2>
-                    <div class="space-y-3">
+                    <div class="space-y-4">
                         <input type="date" id="exp-date" class="w-full p-3 bg-slate-50 border-0 rounded-xl font-bold text-slate-600">
                         <div class="grid grid-cols-3 gap-2">
                             <select id="exp-cat" class="p-3 bg-slate-50 rounded-xl font-bold text-center">
@@ -158,10 +150,10 @@
                             </div>
 
                             <label class="text-xs font-bold text-indigo-800 mb-2 block">分攤成員 (預設全員)</label>
-                            <div id="splitters-grid" class="grid grid-cols-3 gap-2 text-sm"></div>
+                            <div id="splitters-grid" class="grid grid-cols-2 gap-2 text-sm"></div>
                         </div>
 
-                        <button onclick="addRecord()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-black text-lg shadow-lg hover:bg-slate-900 transition active:scale-95">確認記帳</button>
+                        <button onclick="addRecord()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-slate-900 transition active:scale-95">確認記帳</button>
                     </div>
                 </div>
 
@@ -178,56 +170,65 @@
 
                 <details id="admin-setting-tab" class="group bg-slate-100 p-4 rounded-2xl">
                     <summary class="font-bold text-slate-600 cursor-pointer flex justify-between items-center list-none">
-                        <span>⚙️ 設定</span><span class="text-slate-400 group-open:rotate-180 transition">▼</span>
+                        <span>⚙️ 資料設定</span><span class="text-slate-400 group-open:rotate-180 transition">▼</span>
                     </summary>
                     <div class="mt-4 space-y-3 text-sm">
-                        <div><label>成員</label><input type="text" id="set-members" class="w-full p-2 rounded border"></div>
-                        <div><label>幣別</label><input type="text" id="set-sub-name" class="w-full p-2 rounded border"></div>
-                        <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border" step="0.001"></div>
+                        <div><label>成員名單</label><input type="text" id="set-members" class="w-full p-2 rounded border"></div>
+                        <div><label>外幣名稱</label><input type="text" id="set-sub-name" class="w-full p-2 rounded border"></div>
+                        <div><label>匯率設定</label><input type="number" id="set-rate" class="w-full p-2 rounded border" step="0.001"></div>
+                        <div><label>帳簿密碼</label><input type="text" id="set-book-pass" class="w-full p-2 rounded border"></div>
+                        <div><label>管理密碼</label><input type="text" id="set-admin-pass" class="w-full p-2 rounded border"></div>
                         <div><label>管理員</label><select id="set-manager" class="w-full p-2 rounded border"></select></div>
-                        <button onclick="updateSettings()" class="w-full bg-blue-600 text-white py-2 rounded font-bold">儲存</button>
-                        <button onclick="toggleSeal()" class="w-full bg-orange-500 text-white py-2 rounded font-bold">封存/解封</button>
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <button onclick="updateSettings()" class="bg-blue-600 text-white py-2 rounded font-bold">儲存設定</button>
+                            <button onclick="toggleSeal()" class="bg-orange-500 text-white py-2 rounded font-bold">封存帳本</button>
+                        </div>
+                        <button onclick="deleteAllData()" class="w-full bg-red-100 text-red-600 py-2 rounded font-bold mt-2">🧨 刪除所有資料</button>
                     </div>
                 </details>
             </aside>
 
             <main>
-                <div id="main-tabs" class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
-                    <button onclick="switchTab('pub', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md">📊 公帳明細</button>
-                    <button onclick="switchTab('adv', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">⚡ 個人代墊</button>
-                    <button onclick="switchTab('my', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">📒 個人帳目</button>
-                    <button onclick="switchTab('final', this)" class="tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap">🏁 結算報告</button>
+                <div id="main-tabs" class="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                    <button onclick="switchLedgerTab('pub')" class="px-5 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md">📊 公帳明細</button>
+                    <button onclick="switchLedgerTab('adv')" class="px-5 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap hover:bg-slate-50">⚡ 個人代墊</button>
+                    <button onclick="switchLedgerTab('my')" class="px-5 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap hover:bg-slate-50">📒 個人流水帳</button>
+                    <button onclick="switchLedgerTab('final')" class="px-5 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap hover:bg-slate-50">🏁 最終結算</button>
+                    <button onclick="toggleSort()" class="ml-auto p-2 bg-white rounded-full border text-slate-400">🔃 排序</button>
                 </div>
 
-                <div id="panel-pub" class="space-y-6 animate-fade-in">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-                        <div class="bg-green-50 p-3 font-bold text-green-800 rounded-t-2xl">📥 預繳紀錄</div>
+                <div id="panel-pub" class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                        <div class="bg-green-50 p-3 font-bold text-green-800 border-b border-green-100">📥 公帳收入 (預繳)</div>
                         <div id="income-list" class="divide-y divide-slate-100"></div>
                     </div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-                        <div class="bg-red-50 p-3 font-bold text-red-800 rounded-t-2xl">📤 支出紀錄</div>
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                        <div class="bg-red-50 p-3 font-bold text-red-800 border-b border-red-100">📤 公帳支出 (消費)</div>
                         <div id="public-exp-list" class="divide-y divide-slate-100"></div>
                     </div>
                 </div>
 
-                <div id="panel-adv" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-slate-100">
-                    <div class="bg-orange-50 p-3 font-bold text-orange-800 rounded-t-2xl">⚡ 代墊列表</div>
-                    <div id="adv-list" class="divide-y divide-slate-100"></div>
-                </div>
-
-                <div id="panel-my" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-slate-100">
-                    <div class="bg-indigo-50 p-3 font-bold text-indigo-800 rounded-t-2xl">📒 我的帳目</div>
-                    <div id="ledger-content" class="divide-y divide-slate-100 p-4 space-y-2"></div>
-                </div>
-
-                <div id="panel-final" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm p-4 border border-slate-100">
-                    <h3 class="text-xl font-black text-slate-800 mb-4">🏁 結算報告</h3>
-                    <div class="flex gap-2 mb-4">
-                        <button onclick="SMode='TWD';refreshUI(false)" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">台幣</button>
-                        <button onclick="SMode='SUB';refreshUI(false)" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">外幣</button>
-                        <button onclick="SMode='MIX';refreshUI(false)" class="flex-1 py-2 bg-blue-100 rounded text-sm font-bold text-blue-700">混合(轉台幣)</button>
+                <div id="panel-adv" class="hidden bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                    <div class="bg-orange-50 p-3 font-bold text-orange-800 border-b border-orange-100 flex justify-between">
+                        <span>⚡ 個人代墊記錄</span>
                     </div>
-                    <div id="settle-content" class="space-y-4"></div>
+                    <div id="adv-list"></div>
+                </div>
+
+                <div id="panel-my" class="hidden bg-white rounded-2xl shadow-sm p-4 border border-slate-100">
+                    <div id="ledger-content" class="space-y-6"></div>
+                </div>
+
+                <div id="panel-final" class="hidden bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h3 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">🏁 最終結算報告</h3>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <button id="btn-settle-twd" onclick="switchSettleMode('TWD')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600 transition">只算台幣</button>
+                        <button id="btn-settle-sub" onclick="switchSettleMode('SUB')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600 transition">只算外幣</button>
+                        <button id="btn-settle-mix" onclick="switchSettleMode('MIX')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold text-slate-600 transition">混合結算 (轉台幣)</button>
+                    </div>
+
+                    <div id="settle-content" class="space-y-6"></div>
                 </div>
             </main>
         </div>
@@ -249,20 +250,17 @@
         let db = { items: [], members: [] };
         let currentUser = "";
         let currentCur = "SUB";
+        let sortDesc = true;
         let SMode = 'MIX';
 
-        // 1. 自動登入與初始化
+        // --- 1. 自動登入檢測 ---
         window.onload = function() {
-            tryAutoLogin();
-        };
-
-        function tryAutoLogin() {
-            const savedId = localStorage.getItem('trip_last_id');
-            const savedUser = localStorage.getItem('trip_last_user');
-            const savedPass = localStorage.getItem('trip_last_pass');
+            const savedId = localStorage.getItem('trip_auto_id');
+            const savedUser = localStorage.getItem('trip_auto_user');
+            const savedPass = localStorage.getItem('trip_auto_pass');
 
             if (savedId && savedUser && savedPass) {
-                document.getElementById('loading-screen').classList.remove('hidden');
+                document.getElementById('loading-mask').classList.remove('hidden');
                 rdb.ref('books/' + savedId).once('value', (snapshot) => {
                     const data = snapshot.val();
                     if (data && data.pass === savedPass) {
@@ -270,18 +268,16 @@
                         if (!db.items) db.items = [];
                         currentUser = savedUser;
                         initApp();
-                    } else {
-                        // 登入失效
-                        document.getElementById('loading-screen').classList.add('hidden');
-                        localStorage.removeItem('trip_last_pass');
                     }
+                    document.getElementById('loading-mask').classList.add('hidden');
                 });
             }
-        }
+        };
 
+        // --- 2. 登入與初始化 ---
         function checkBookExist() {
             const id = document.getElementById('login-id').value.trim();
-            if (!id) return alert("請輸入帳簿 ID");
+            if (!id) return alert("請輸入帳簿代碼");
 
             rdb.ref('books/' + id).once('value', (snapshot) => {
                 const data = snapshot.val();
@@ -316,33 +312,32 @@
         function lockIdentityAndEnter() {
             const selected = document.getElementById('user-select').value;
             const passInput = document.getElementById('login-pass').value.trim();
-            const remember = document.getElementById('remember-me').checked;
-
-            if (passInput !== db.pass) return alert("密碼錯誤");
+            
+            if (passInput !== db.pass) return alert("❌ 帳簿密碼錯誤");
             if (selected === db.manager) {
                 const adminInput = document.getElementById('admin-login-pass').value.trim();
-                if (adminInput !== db.adminPass) return alert("管理員密碼錯誤");
+                if (adminInput !== db.adminPass) return alert("❌ 管理員密碼錯誤");
             }
 
             currentUser = selected;
-            
-            // 儲存自動登入資訊
-            if (remember) {
-                localStorage.setItem('trip_last_id', db.id);
-                localStorage.setItem('trip_last_user', currentUser);
-                localStorage.setItem('trip_last_pass', db.pass);
+
+            if (document.getElementById('auto-login-check').checked) {
+                localStorage.setItem('trip_auto_id', db.id);
+                localStorage.setItem('trip_auto_user', currentUser);
+                localStorage.setItem('trip_auto_pass', db.pass);
             }
 
             initApp();
         }
 
         function initApp() {
-            document.getElementById('loading-screen').classList.add('hidden');
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('loading-mask').classList.add('hidden');
 
-            document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管)' : ''}`;
-            document.getElementById('btn-sub').innerText = db.subName;
+            document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理員)' : ''}`;
+            document.getElementById('btn-sub').innerText = `🇯🇵 ${db.subName}`;
+            document.getElementById('tab-add-title').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
             
             document.getElementById('exp-date').valueAsDate = new Date();
             document.getElementById('fund-date').valueAsDate = new Date();
@@ -352,7 +347,7 @@
             
             const splittersGrid = document.getElementById('splitters-grid');
             splittersGrid.innerHTML = db.members.map(m => `
-                <label class="flex items-center gap-1 p-2 bg-slate-50 rounded border cursor-pointer">
+                <label class="flex items-center gap-1 p-2 bg-slate-50 rounded border cursor-pointer hover:bg-slate-100">
                     <input type="checkbox" value="${m}" checked> ${m}
                 </label>
             `).join('');
@@ -362,13 +357,15 @@
                 document.getElementById('admin-setting-tab').remove();
                 const pubOpt = document.getElementById('opt-public-pay');
                 pubOpt.disabled = true;
-                pubOpt.innerText += " (限管理)";
+                pubOpt.innerText += " (限管理員)";
                 document.getElementById('exp-path').value = 'advance';
                 togglePayerSelection();
             } else {
                 document.getElementById('set-members').value = db.members.join(',');
                 document.getElementById('set-sub-name').value = db.subName;
                 document.getElementById('set-rate').value = db.rate;
+                document.getElementById('set-book-pass').value = db.pass;
+                document.getElementById('set-admin-pass').value = db.adminPass;
                 const mgrSel = document.getElementById('set-manager');
                 mgrSel.innerHTML = db.members.map(m => `<option value="${m}">${m}</option>`).join('');
                 mgrSel.value = db.manager;
@@ -379,6 +376,7 @@
         }
 
         function save() { if (db.id) rdb.ref('books/' + db.id).set(db); }
+        
         function startSync() {
             if (!db.id) return;
             rdb.ref('books/' + db.id).on('value', (snapshot) => {
@@ -403,92 +401,212 @@
             document.getElementById('sum-expense').innerText = `$${Math.round(totalSpend)}`;
             document.getElementById('sum-balance').innerText = `$${Math.round(totalFund - totalSpend)}`;
 
-            renderList('income-list', i => i.type === 'fund' && i.cur === currentCur, 'text-green-600', '+');
-            renderList('public-exp-list', i => i.type === 'public' && i.cur === currentCur, 'text-red-600', '-');
+            renderIncomeList();
+            renderPublicExpList();
             renderAdvList();
             renderLedger();
             renderSettleReport();
         }
 
-        function renderList(domId, filterFn, colorClass, sign) {
-            const list = db.items.filter(filterFn).sort((a,b) => b.date.localeCompare(a.date));
-            const html = list.map(i => `
-                <div class="flex justify-between items-center p-3 hover:bg-slate-50 cursor-pointer" onclick="editItem(${i.id})">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xl">${i.cat || '📄'}</span>
-                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-slate-700">${i.title}</div></div>
+        // --- 4. 渲染函數優化 (核心修改區) ---
+        
+        function renderIncomeList() {
+            const list = db.items.filter(i => i.type === 'fund' && i.cur === currentCur).sort((a,b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+            let html = list.map(i => {
+                const perAmt = Math.round(i.amt / (i.splitters ? i.splitters.length : db.members.length));
+                return `
+                <div class="flex justify-between p-3 border-b bg-white items-center">
+                    <div>
+                        <div class="text-slate-500 text-sm">${i.date}</div>
+                        <div class="font-bold text-lg">${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(每人$${perAmt})</span></div>
                     </div>
-                    <div class="${colorClass} font-bold">${sign}$${Math.round(i.amt)}</div>
-                </div>
-            `).join('');
-            document.getElementById(domId).innerHTML = html || `<p class="p-4 text-center text-slate-300 text-sm">無資料</p>`;
+                    <div class="text-right">
+                        <div class="text-green-600 font-bold text-lg">+$${Math.round(i.amt)}</div>
+                        ${currentUser === db.manager ? `<button onclick="editItem(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('income-list').innerHTML = html || "<p class='p-4 text-slate-400 text-center'>無資料</p>";
+        }
+
+        function renderPublicExpList() {
+            const list = db.items.filter(i => i.type === 'public' && i.cur === currentCur).sort((a,b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+            document.getElementById('public-exp-list').innerHTML = list.map(i => {
+                const perAmt = Math.round(i.amt / (i.splitters ? i.splitters.length : 1));
+                return `
+                <div class="flex justify-between p-3 border-b bg-white items-center">
+                    <div>
+                        <div class="text-slate-500 text-sm">${i.date} ${i.cat||''}</div>
+                        <div class="font-bold text-lg">${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(每人分攤 $${perAmt})</span></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-red-600 font-bold text-lg">-$${Math.round(i.amt)}</div>
+                        ${currentUser === db.manager || i.payer === currentUser ? `<button onclick="editItem(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('') || "<p class='p-4 text-slate-400 text-center'>無資料</p>";
         }
 
         function renderAdvList() {
-            const list = db.items.filter(i => i.type === 'advance' && i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
-            document.getElementById('adv-list').innerHTML = list.map(i => `
-                <div class="flex justify-between items-center p-3 border-l-4 border-orange-400 hover:bg-slate-50 cursor-pointer" onclick="editItem(${i.id})">
-                    <div><div class="text-xs text-slate-400">${i.date} <span class="bg-orange-100 text-orange-600 px-1 rounded">${i.payer}墊</span></div><div class="font-bold text-slate-700">${i.title}</div></div>
-                    <div class="text-blue-600 font-bold">$${Math.round(i.amt)}</div>
-                </div>
-            `).join('') || `<p class="p-4 text-center text-slate-300 text-sm">無資料</p>`;
+            const list = db.items.filter(i => i.type === 'advance' && i.cur === currentCur).sort((a,b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+            document.getElementById('adv-list').innerHTML = list.map(i => {
+                const splittersText = i.splitters ? i.splitters.join(', ') : '全員';
+                const perAmt = Math.round(i.amt / (i.splitters ? i.splitters.length : 1));
+                return `
+                <div class="flex justify-between p-3 border-b bg-white items-center">
+                    <div>
+                        <div class="text-xs text-slate-400">${i.date} <span class="bg-orange-100 text-orange-600 px-1 rounded text-xs">${i.payer}先墊</span></div>
+                        <div class="font-bold text-lg">${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(每人分攤 $${perAmt})</span></div>
+                        <div class="text-xs text-slate-400 mt-1">分攤成員: ${splittersText}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-blue-600 font-bold text-lg">$${Math.round(i.amt)}</div>
+                        ${i.payer === currentUser || currentUser === db.manager ? `<button onclick="editItem(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('') || "<p class='p-4 text-slate-400 text-center'>無資料</p>";
         }
 
         function renderLedger() {
-            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
-            let html = "";
+            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+            
+            // 定義四個容器
+            let pubFundHTML = ""; // 1. 預繳
+            let pubCostHTML = ""; // 2. 公帳消費分攤
+            let advPayHTML = "";  // 3. 代墊他人 (應收)
+            let advCostHTML = ""; // 4. 代墊分攤 (應付)
+
+            let pubNet = 0; // 公帳權益
+            let advNet = 0; // 代墊淨額
+
             list.forEach(i => {
-                if (i.splitters.includes(currentUser) || i.payer === currentUser) {
-                    const myShare = i.splitters.includes(currentUser) ? (i.amt / i.splitters.length) : 0;
-                    if (i.type === 'fund' && i.splitters.includes(currentUser)) {
-                        html += `<div class="flex justify-between p-3 border-b border-slate-100"><div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">預繳公帳</div></div><div class="text-green-600 font-bold">支出 $${Math.round(myShare)}</div></div>`;
-                    } else if (i.type !== 'fund' && myShare > 0) {
-                        html += `<div class="flex justify-between p-3 border-b border-slate-100"><div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">${i.title}</div></div><div class="text-red-400 font-bold">分攤 -$${Math.round(myShare)}</div></div>`;
-                    }
+                const share = Math.round(i.amt / (i.splitters ? i.splitters.length : 1));
+                
+                // 公帳預繳 (我存入的錢)
+                if (i.type === 'fund' && i.splitters.includes(currentUser)) {
+                    pubNet += share;
+                    pubFundHTML += `<div class="flex justify-between p-3 border-b border-slate-100">
+                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">預繳公帳</div></div>
+                        <div class="text-green-600 font-bold">存入 +$${share}</div>
+                    </div>`;
+                }
+
+                // 公帳消費 (花掉我的錢)
+                if (i.type === 'public' && i.splitters.includes(currentUser)) {
+                    pubNet -= share;
+                    pubCostHTML += `<div class="flex justify-between p-3 border-b border-slate-100">
+                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">${i.title}</div></div>
+                        <div class="text-red-600 font-bold">分攤 -$${share}</div>
+                    </div>`;
+                }
+                
+                // 代墊 - 墊付 (別人欠我錢)
+                if (i.type === 'advance' && i.payer === currentUser) {
+                    advNet += i.amt;
+                    advPayHTML += `<div class="flex justify-between p-3 border-b border-slate-100">
+                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">代墊 ${i.title}</div></div>
+                        <div class="text-blue-600 font-bold">墊付 +$${Math.round(i.amt)}</div>
+                    </div>`;
+                }
+
+                // 代墊 - 分攤 (我欠別人錢)
+                if (i.type === 'advance' && i.splitters.includes(currentUser)) {
+                    advNet -= share;
+                    advCostHTML += `<div class="flex justify-between p-3 border-b border-slate-100">
+                        <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold">${i.title}</div></div>
+                        <div class="text-red-600 font-bold">分攤 -$${share}</div>
+                    </div>`;
                 }
             });
-            document.getElementById('ledger-content').innerHTML = html || `<p class="text-center text-slate-300 text-sm">無資料</p>`;
+
+            const finalHTML = `
+                <div class="mb-8">
+                    <h4 class="font-black text-lg text-slate-700 mb-3 border-l-4 border-green-500 pl-2">💰 公帳記錄 (權益)</h4>
+                    
+                    <div class="bg-green-50 rounded-t-xl p-2 text-sm font-bold text-green-800">📥 預繳存入</div>
+                    <div class="bg-white border-l border-r border-slate-100 mb-2">${pubFundHTML || '<p class="p-3 text-sm text-slate-400">無預繳紀錄</p>'}</div>
+                    
+                    <div class="bg-red-50 p-2 text-sm font-bold text-red-800">📤 消費扣抵</div>
+                    <div class="bg-white border-l border-r border-b border-slate-100 rounded-b-xl mb-2">${pubCostHTML || '<p class="p-3 text-sm text-slate-400">無消費紀錄</p>'}</div>
+                    
+                    <div class="text-right font-black text-base p-3 bg-slate-100 rounded-xl text-slate-700">公帳剩餘權益: <span class="${pubNet>=0?'text-blue-600':'text-red-600'}">${pubNet>=0?'+':''}$${pubNet}</span></div>
+                </div>
+
+                <div>
+                    <h4 class="font-black text-lg text-slate-700 mb-3 border-l-4 border-orange-500 pl-2">⚡ 代墊與私帳分攤</h4>
+                    
+                    <div class="bg-blue-50 rounded-t-xl p-2 text-sm font-bold text-blue-800">💙 我幫人墊 (應收)</div>
+                    <div class="bg-white border-l border-r border-slate-100 mb-2">${advPayHTML || '<p class="p-3 text-sm text-slate-400">無代墊紀錄</p>'}</div>
+                    
+                    <div class="bg-orange-50 p-2 text-sm font-bold text-orange-800">🧡 人幫我墊 (應付)</div>
+                    <div class="bg-white border-l border-r border-b border-slate-100 rounded-b-xl mb-2">${advCostHTML || '<p class="p-3 text-sm text-slate-400">無分攤紀錄</p>'}</div>
+                    
+                    <div class="text-right font-black text-base p-3 bg-slate-100 rounded-xl text-slate-700">代墊結算淨額: <span class="${advNet>=0?'text-blue-600':'text-red-600'}">${advNet>=0?'+':''}$${advNet}</span></div>
+                </div>
+            `;
+            document.getElementById('ledger-content').innerHTML = finalHTML;
         }
 
         function renderSettleReport() {
+            // 更新按鈕樣式 (Active State)
+            const btnClass = "flex-1 py-2 rounded text-sm font-bold transition ";
+            const active = "bg-blue-600 text-white shadow ring-2 ring-blue-300";
+            const inactive = "bg-slate-100 text-slate-600 hover:bg-slate-200";
+
+            document.getElementById('btn-settle-twd').className = btnClass + (SMode==='TWD' ? active : inactive);
+            document.getElementById('btn-settle-sub').className = btnClass + (SMode==='SUB' ? active : inactive);
+            document.getElementById('btn-settle-mix').className = btnClass + (SMode==='MIX' ? active : inactive);
+
             const results = {};
             db.members.forEach(m => results[m] = { paid: 0, cost: 0 });
+
             db.items.forEach(i => {
                 let val = i.amt;
                 if (SMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
                 if (SMode === 'TWD' && i.cur !== 'TWD') return;
                 if (SMode === 'SUB' && i.cur !== 'SUB') return;
-                
+
                 const share = val / i.splitters.length;
                 if (i.type === 'fund') i.splitters.forEach(m => results[m].paid += share);
                 else if (i.type === 'public') i.splitters.forEach(m => results[m].cost += share);
-                else if (i.type === 'advance') { if(results[i.payer]) results[i.payer].paid += val; i.splitters.forEach(m => results[m].cost += share); }
+                else if (i.type === 'advance') {
+                    if(results[i.payer]) results[i.payer].paid += val;
+                    i.splitters.forEach(m => results[m].cost += share);
+                }
             });
 
-            let html = `<table class="w-full text-sm text-left mb-4"><thead class="bg-slate-100"><tr><th class="p-2">成員</th><th class="p-2 text-right">結餘</th></tr></thead><tbody>`;
+            let html = `<table class="w-full text-sm"><thead><tr class="bg-slate-100"><th>成員</th><th class="text-right">結餘</th></tr></thead><tbody>`;
             const netArr = [];
             db.members.forEach(m => {
                 const bal = results[m].paid - results[m].cost;
                 netArr.push({ name: m, bal });
-                html += `<tr class="border-b"><td class="p-2 font-bold">${m}</td><td class="p-2 text-right font-black ${bal>=0?'text-blue-600':'text-red-500'}">${bal>=0?'+':''}${Math.round(bal)}</td></tr>`;
+                html += `<tr class="border-b"><td class="p-2">${m}</td><td class="p-2 text-right font-bold ${bal>=0?'text-blue-600':'text-red-600'}">${bal>=0?'+':''}${Math.round(bal)}</td></tr>`;
             });
             html += `</tbody></table>`;
-
+            
             let receivers = netArr.filter(n => n.bal > 0.5).sort((a,b) => b.bal - a.bal);
             let payers = netArr.filter(n => n.bal < -0.5).map(n => ({...n, bal: Math.abs(n.bal)})).sort((a,b) => b.bal - a.bal);
             let logs = [];
-            payers.forEach(p => { receivers.forEach(r => {
-                if (p.bal <= 0 || r.bal <= 0) return;
-                let amt = Math.min(p.bal, r.bal);
-                logs.push(`📍 <b>${p.name}</b> ➡ ${r.name} <span class="text-blue-600 font-bold">$${Math.round(amt)}</span>`);
-                p.bal -= amt; r.bal -= amt;
-            });});
-            receivers.forEach(r => { if(r.bal > 0.5 && r.name !== db.manager) logs.push(`🏦 <b>${db.manager}(退)</b> ➡ ${r.name} <span class="text-green-600 font-bold">$${Math.round(r.bal)}</span>`); });
+            
+            payers.forEach(p => {
+                receivers.forEach(r => {
+                    if (p.bal <= 0 || r.bal <= 0) return;
+                    let amount = Math.min(p.bal, r.bal);
+                    logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：$${Math.round(amount)}`);
+                    p.bal -= amount; r.bal -= amount;
+                });
+            });
+            receivers.forEach(r => {
+                if(r.bal > 0.5 && r.name !== db.manager) {
+                    logs.push(`<b>${db.manager}(退公帳)</b> ➡️ <b>${r.name}</b>：$${Math.round(r.bal)}`);
+                }
+            });
 
-            html += logs.length ? `<div class="space-y-2 text-sm">${logs.map(l=>`<div class="bg-slate-50 p-2 border rounded">${l}</div>`).join('')}</div>` : `<p class="text-center text-slate-400">帳目已平衡</p>`;
+            html += `<div class="mt-4 space-y-2 text-sm">${logs.map(l=>`<div class="bg-white p-2 border rounded shadow-sm">${l}</div>`).join('')}</div>`;
             document.getElementById('settle-content').innerHTML = html;
         }
 
+        // --- 5. 操作邏輯 ---
         function addRecord() {
             if (db.isSealed) return alert("帳簿已封存");
             const date = document.getElementById('exp-date').value;
@@ -496,44 +614,55 @@
             const amt = parseFloat(document.getElementById('exp-amt').value);
             const cat = document.getElementById('exp-cat').value;
             const type = document.getElementById('exp-path').value;
-            if (!date || !title || !amt) return alert("資料不全");
             
+            if (!date || !title || !amt) return alert("資料不完整");
+
             const checkboxes = document.querySelectorAll('#splitters-grid input:checked');
             const splitters = Array.from(checkboxes).map(c => c.value);
-            if (splitters.length === 0) return alert("請選擇分攤人");
+            if (splitters.length === 0) return alert("請至少選擇一位分帳成員");
 
-            db.items.push({ id: Date.now(), date, cat, title, amt, cur: currentCur, type, payer: type === 'advance' ? document.getElementById('payer-member').value : "公帳", splitters });
+            let payer = "公帳";
+            if (type === 'advance') payer = document.getElementById('payer-member').value;
+
+            db.items.push({ id: Date.now(), date, cat, title, amt, cur: currentCur, type, payer, splitters });
             document.getElementById('exp-title').value = ""; document.getElementById('exp-amt').value = "";
-            refreshUI(); alert("已記錄");
+            refreshUI(); alert("✅ 記帳成功！");
         }
 
         function addFundRecord() {
+            if (db.isSealed) return;
             const perAmt = parseFloat(document.getElementById('fund-amt').value);
             const date = document.getElementById('fund-date').value;
-            if (!perAmt) return;
+            if (!perAmt) return alert("請輸入金額");
             db.items.push({ id: Date.now(), date, cat: "💰", title: "全員公帳預繳", amt: perAmt * db.members.length, cur: currentCur, type: 'fund', payer: "全員", splitters: [...db.members] });
-            document.getElementById('fund-amt').value = ""; refreshUI(); alert("入金成功");
+            document.getElementById('fund-amt').value = ""; refreshUI(); alert("✅ 入帳成功");
         }
 
         function editItem(id) {
             if (db.isSealed) return;
             const item = db.items.find(i => i.id == id);
             if (!item) return;
-            if (currentUser !== db.manager && item.payer !== currentUser && !item.splitters.includes(currentUser)) return alert("無權修改");
 
-            const newTitle = prompt("修改名稱", item.title);
+            const newTitle = prompt("修改內容：", item.title);
             if (newTitle !== null) item.title = newTitle;
-            
+
             if (item.type === 'fund') {
                 const oldPer = item.amt / item.splitters.length;
-                const newPer = prompt(`修改每人預繳 (目前$${oldPer})`, oldPer);
+                const newPer = prompt(`修改每人預繳 (目前 $${oldPer})：`, oldPer);
                 if (newPer !== null) item.amt = parseFloat(newPer) * item.splitters.length;
             } else {
-                const newAmt = prompt("修改金額", item.amt);
+                const newAmt = prompt("修改總金額：", item.amt);
                 if (newAmt !== null) item.amt = parseFloat(newAmt);
             }
-            if (confirm("刪除此筆？")) db.items = db.items.filter(i => i.id != id);
             refreshUI();
+        }
+
+        function deleteItem(id) {
+            if (db.isSealed) return;
+            if (confirm("確定刪除此筆帳目？")) {
+                db.items = db.items.filter(i => i.id != id);
+                refreshUI();
+            }
         }
 
         function renderUserSelect() {
@@ -544,21 +673,23 @@
         }
 
         function togglePayerSelection() {
-            document.getElementById('payer-select-div').classList.toggle('hidden', document.getElementById('exp-path').value !== 'advance');
+            const path = document.getElementById('exp-path').value;
+            document.getElementById('payer-select-div').classList.toggle('hidden', path !== 'advance');
         }
 
         function switchCurrency(cur) {
             currentCur = cur;
-            document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 ${cur==='TWD'?'currency-active':'bg-white text-slate-400'} text-sm lg:text-base`;
-            document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-4 py-2 lg:px-6 lg:py-3 rounded-xl font-bold border-2 ${cur==='SUB'?'currency-active':'bg-white text-slate-400'} text-sm lg:text-base`;
+            document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${cur==='TWD'?'currency-active':'bg-white text-slate-400'}`;
+            document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${cur==='SUB'?'currency-active':'bg-white text-slate-400'}`;
             document.getElementById('tab-add-title').innerText = `📝 新增支出 (${cur==='TWD'?'台幣':db.subName})`;
             refreshUI(false);
         }
 
-        function switchTab(tabName, btn) {
+        function switchLedgerTab(tabName) {
             ['panel-pub', 'panel-adv', 'panel-my', 'panel-final'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.className = "tab-btn px-4 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap");
-            btn.className = "tab-btn px-4 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md";
+            const btns = document.getElementById('main-tabs').querySelectorAll('button');
+            btns.forEach(b => b.className = "px-5 py-2 rounded-full font-bold bg-white text-slate-600 border whitespace-nowrap hover:bg-slate-50 transition");
+            event.target.className = "px-5 py-2 rounded-full font-bold bg-slate-800 text-white whitespace-nowrap shadow-md transition";
             document.getElementById('panel-' + tabName).classList.remove('hidden');
         }
 
@@ -566,11 +697,17 @@
             db.members = document.getElementById('set-members').value.split(',').map(m => m.trim());
             db.subName = document.getElementById('set-sub-name').value;
             db.rate = parseFloat(document.getElementById('set-rate').value);
+            db.pass = document.getElementById('set-book-pass').value;
+            db.adminPass = document.getElementById('set-admin-pass').value;
             db.manager = document.getElementById('set-manager').value;
-            save(); alert("已儲存"); location.reload();
+            save(); alert("設定已更新，頁面將重新載入"); location.reload();
         }
-        function toggleSeal() { db.isSealed = !db.isSealed; save(); refreshUI(); alert(db.isSealed?"已封存":"已解封"); }
-        function logout() { localStorage.removeItem('trip_last_pass'); location.reload(); }
+
+        function toggleSeal() { db.isSealed = !db.isSealed; save(); refreshUI(); alert(db.isSealed?"帳簿已封存":"帳簿已解封"); }
+        function deleteAllData() { if(confirm("🧨 確定要清空資料嗎？無法復原！")) { db.items = []; save(); refreshUI(); } }
+        function toggleSort() { sortDesc = !sortDesc; refreshUI(false); }
+        function switchSettleMode(m) { SMode = m; refreshUI(false); }
+        function logout() { localStorage.removeItem('trip_auto_pass'); location.reload(); }
     </script>
 </body>
 </html>
