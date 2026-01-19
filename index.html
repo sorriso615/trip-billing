@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 專業結算版 (V2.0)</title>
+    <title>TripSplit 2026 專業結算版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -24,11 +24,10 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* 計算機按鈕樣式 */
-        .calc-btn { background: #f8fafc; border: 1px solid #cbd5e1; font-weight: bold; font-size: 1.25rem; padding: 10px; border-radius: 8px; touch-action: manipulation; }
+        .calc-btn { background: #f8fafc; border: 1px solid #cbd5e1; font-weight: bold; font-size: 1.25rem; padding: 12px; border-radius: 8px; touch-action: manipulation; }
         .calc-btn:active { background: #e2e8f0; transform: scale(0.95); }
         .calc-op { color: #2563eb; background: #eff6ff; }
-        .calc-enter { background: #3b82f6; color: white; border-color: #2563eb; }
-
+        
         /* RWD 設定 */
         @media (min-width: 1024px) {
             .app-container { display: grid; grid-template-columns: 450px 1fr; gap: 24px; align-items: start; }
@@ -228,26 +227,25 @@
                         </div>
                     </summary>
                     <div class="p-4 border-t border-slate-100 space-y-3">
-                        
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🔵 公帳分攤 (預繳 & 消費)</span><span class="arrow transition-transform">▼</span>
+                                <span>🔵 公帳分攤 (您應付的)</span><span class="arrow transition-transform">▼</span>
                             </summary>
                             <div class="p-3 border-t bg-white" id="ledger-public-content"></div>
                         </details>
                         
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🟠 代墊往來 (墊付 & 被墊)</span><span class="arrow transition-transform">▼</span>
+                                <span>🟣 個人支付 (自付紀錄)</span><span class="arrow transition-transform">▼</span>
                             </summary>
-                            <div class="p-3 border-t bg-white" id="ledger-advance-content"></div>
+                            <div class="p-3 border-t bg-white" id="ledger-personal-content"></div>
                         </details>
 
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🟣 個人支付 (自付)</span><span class="arrow transition-transform">▼</span>
+                                <span>🟠 代墊往來 (應收/應付)</span><span class="arrow transition-transform">▼</span>
                             </summary>
-                            <div class="p-3 border-t bg-white" id="ledger-personal-content"></div>
+                            <div class="p-3 border-t bg-white" id="ledger-advance-content"></div>
                         </details>
                     </div>
                 </details>
@@ -308,6 +306,11 @@
                                             <option value="EUR">🇪🇺 歐元</option>
                                             <option value="CNY">🇨🇳 人民幣</option>
                                             <option value="THB">🇹🇭 泰銖</option>
+                                            <option value="SGD">🇸🇬 新幣</option>
+                                            <option value="MYR">🇲🇾 馬幣</option>
+                                            <option value="VND">🇻🇳 越南盾</option>
+                                            <option value="PHP">🇵🇭 披索</option>
+                                            <option value="IDR">🇮🇩 印尼盾</option>
                                         </select>
                                         <input type="text" id="set-sub-name" class="w-2/3 p-2 rounded border">
                                     </div>
@@ -650,8 +653,6 @@
             const otherAdv = rawList.filter(i => i.type === 'advance' && i.splitters.includes(currentUser) && i.payer !== currentUser);
             document.getElementById('adv-other-list').innerHTML = renderGrouped(otherAdv, i => {
                  const perPerson = Math.round(i.amt / (i.splitters?.length || 1));
-                 // 這裡只顯示自己要付的那一份，還是總額？習慣上顯示該筆交易總額，但備註說明我欠多少
-                 // 為了邏輯一致，代墊清單顯示該筆項目的總金額 (但標示是我欠的)
                  return listRow(i, `${i.payer}先墊 (每人${perPerson})`, 'text-red-600', `總:${Math.round(i.amt)}`, false);
             });
 
@@ -810,7 +811,6 @@
                     const share = Math.round(i.amt / (i.splitters?.length || 1));
                     // 如果是我墊付，金額是 (總額 - 我自己那份) = 別人欠我的
                     if (i.payer === currentUser) {
-                        // 如果我也在分攤名單內，應收 = 總額 - 我的一份。如果我不在名單內(幫別人墊全部)，應收 = 總額。
                         const myShare = i.splitters.includes(currentUser) ? share : 0;
                         return i.amt - myShare;
                     } 
@@ -858,7 +858,7 @@
                         <div class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 inline-block rounded mb-1 border border-slate-100">${date}</div>
                         ${grouped[date].map(i => {
                             const amt = amtFunc(i);
-                            if(amt === 0) return ''; // Skip self-advance fully split to self
+                            if(amt === 0) return '';
                             if(isInc) totalInc += amt; else totalExp += amt;
                             const icon = i.cat ? i.cat.split(' ')[0] : '🔹';
                             return `<div class="flex justify-between py-1 border-b border-slate-100 last:border-0 pl-2">
@@ -967,7 +967,6 @@
                 }
             });
 
-            // 公帳透支處理
             let potStatusHTML = "";
             if (potBalance < 0) {
                 if (db.manager && stats[db.manager]) {
