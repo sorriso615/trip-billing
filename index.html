@@ -13,7 +13,10 @@
         :root { font-size: 16px; }
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #334155; }
         input, select, button, textarea { font-size: 16px; }
-        .amt-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+        
+        /* 修改處 1：數字樣式加大加粗 (font-weight: 900, font-size 放大) */
+        .amt-text { font-family: 'Courier New', Courier, monospace; font-weight: 900; font-size: 1.1em; letter-spacing: 0.5px; }
+        
         .currency-active { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
         
         /* 折疊動畫 */
@@ -86,9 +89,9 @@
                     <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all">外幣</button>
                 </div>
                 <div class="grid grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                    <div><p class="text-xs text-slate-400">公款收入</p><p id="sum-income" class="amt-text text-green-600">0</p></div>
-                    <div class="border-l"><p class="text-xs text-slate-400">公款支出</p><p id="sum-expense" class="amt-text text-red-600">0</p></div>
-                    <div class="border-l"><p class="text-xs text-slate-400">公款餘額</p><p id="sum-balance" class="amt-text text-blue-600">0</p></div>
+                    <div><p class="text-xs text-slate-400">公款收入</p><p id="sum-income" class="amt-text text-xl text-green-600">0</p></div>
+                    <div class="border-l"><p class="text-xs text-slate-400">公款支出</p><p id="sum-expense" class="amt-text text-xl text-red-600">0</p></div>
+                    <div class="border-l"><p class="text-xs text-slate-400">公款餘額</p><p id="sum-balance" class="amt-text text-xl text-blue-600">0</p></div>
                 </div>
             </div>
         </header>
@@ -112,7 +115,7 @@
                         </div>
                         
                         <div class="space-y-2">
-                            <input type="text" id="exp-amt" placeholder="金額" class="w-full p-4 bg-slate-50 rounded-xl font-black text-xl text-blue-600 text-right placeholder-slate-300 border-0 ring-1 ring-slate-200" readonly onclick="this.value=''">
+                            <input type="text" id="exp-amt" placeholder="金額" class="w-full p-4 bg-slate-50 rounded-xl font-black text-3xl text-blue-600 text-right placeholder-slate-300 border-0 ring-1 ring-slate-200" readonly onclick="this.value=''">
                             <div class="grid grid-cols-4 gap-2">
                                 <div class="calc-btn" onclick="calcInput('7')">7</div>
                                 <div class="calc-btn" onclick="calcInput('8')">8</div>
@@ -517,9 +520,13 @@
                 'text-red-600', '-', (i) => currentUser === db.manager || i.payer === currentUser
             );
 
+            // 修改處 2：增加每人分攤金額顯示
             document.getElementById('adv-list').innerHTML = renderGrouped(
                 list.filter(i => i.type === 'advance'),
-                (i) => `${i.payer}先墊 | 分攤:${i.splitters.join(',')}`,
+                (i) => {
+                    const per = Math.round(i.amt / (i.splitters.length || 1));
+                    return `${i.payer}先墊 (每人${per}) | 分攤:${i.splitters.join(',')}`;
+                },
                 'text-green-600', '', (i) => currentUser === db.manager || i.payer === currentUser || i.splitters.includes(currentUser)
             );
 
@@ -538,9 +545,10 @@
             const editBtn = (!db.isSealed && isCanEdit) ? `<button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : '';
             const icon = i.cat ? i.cat.split(' ')[0] : '💸';
             
+            // 修改處：text-lg -> text-2xl, font-bold -> font-black
             return `<div class="flex justify-between p-3 border-b border-slate-100 bg-white items-center">
                 <div><div class="font-bold text-lg text-slate-700">${icon} ${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(${sub})</span></div></div>
-                <div class="text-right"><div class="${color} font-bold text-lg amt-text">${amtDisp}</div>${editBtn}</div>
+                <div class="text-right"><div class="${color} font-black text-2xl amt-text">${amtDisp}</div>${editBtn}</div>
             </div>`;
         }
         function noData() { return '<p class="p-4 text-slate-400 text-center text-sm">無資料</p>'; }
@@ -704,7 +712,7 @@
         function lRow(d, t, c, a, sub='') {
             return `<div class="flex justify-between p-2 border-b border-slate-100 items-center last:border-0">
                 <div><div class="text-xs text-slate-400">${d} ${sub}</div><div class="font-bold text-slate-700">${t}</div></div>
-                <div class="${c} font-bold amt-text">${a}</div>
+                <div class="${c} font-black text-xl amt-text">${a}</div>
             </div>`;
         }
 
@@ -792,9 +800,9 @@
                 const s = stats[m];
                 tableHtml += `<tr class="border-b bg-white">
                     <td class="p-3 font-bold text-slate-800">${m}</td>
-                    <td class="p-3 text-green-600 font-bold amt-text">${Math.round(s.paid)}</td>
-                    <td class="p-3 text-red-600 font-bold amt-text">${Math.round(s.share)}</td>
-                    <td class="p-3 font-black amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${Math.round(s.bal)}</td>
+                    <td class="p-3 text-green-600 font-black text-lg amt-text">${Math.round(s.paid)}</td>
+                    <td class="p-3 text-red-600 font-black text-lg amt-text">${Math.round(s.share)}</td>
+                    <td class="p-3 font-black text-lg amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${Math.round(s.bal)}</td>
                 </tr>`;
             });
             tableHtml += `</tbody></table>
