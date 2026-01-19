@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 介面優化版</title>
+    <title>TripSplit 2026 管理員修訂版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -42,48 +42,39 @@
         <div class="text-slate-500 font-bold text-lg" id="loading-text">資料同步中...</div>
     </div>
 
-    <div id="login-page" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
-        <h1 class="text-3xl font-black text-center text-slate-800 mb-6">TripSplit 2026</h1>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1">📘 帳簿代碼 (ID)</label>
-                <input type="text" id="login-id" placeholder="例如: Tokyo2026" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition">
-            </div>
-            <button onclick="checkBookExist()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-900 transition active:scale-95">進入帳簿</button>
-            
-            <div id="identity-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="block text-sm font-bold text-slate-600 mb-2">👤 選擇您的名字</label>
-                    <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-3 text-lg font-bold"></select>
-                    
-                    <input type="password" id="login-pass" placeholder="🔑 輸入帳簿密碼" class="w-full p-3 border rounded-xl mb-3">
-                    <div id="admin-pass-input-box" class="hidden">
-                        <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-200 bg-orange-50 mb-3 text-orange-800">
-                    </div>
-                    
-                    <label class="flex items-center gap-2 mb-3 text-sm text-slate-500">
-                        <input type="checkbox" id="auto-login-check" checked> 保持登入
-                    </label>
-                    <button onclick="lockIdentityAndEnter()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-700 transition">確認登入</button>
-                </div>
-            </div>
+    <div id="login-portal" class="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl mt-10 border border-slate-100">
+        <h1 class="text-4xl font-black text-center text-slate-800 mb-2">TripSplit</h1>
+        <p class="text-center text-slate-400 mb-8 font-bold tracking-widest">2026 EDITION</p>
+        
+        <div id="portal-buttons" class="space-y-4">
+            <button onclick="showLoginInput('EXIST')" class="w-full bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-2xl font-black text-xl hover:bg-slate-50 hover:border-blue-400 transition shadow-sm flex items-center justify-center gap-2">
+                📂 進入帳簿
+            </button>
+        </div>
 
-            <div id="new-book-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
-                <h3 class="font-black text-lg mb-3 text-slate-700">🆕 查無此ID，建立新帳簿？</h3>
-                <div class="space-y-3">
-                    <input type="password" id="secure-code" placeholder="設定一組密碼" class="w-full p-3 border rounded-xl">
-                    <div class="flex gap-2">
-                        <select onchange="document.getElementById('new-foreign-name').value=this.value" class="w-1/3 p-3 border rounded-xl bg-slate-50 text-sm font-bold text-center">
-                            <option value="">選幣別</option><option value="JPY">🇯🇵 日幣</option><option value="USD">🇺🇸 美金</option><option value="EUR">🇪🇺 歐元</option><option value="KRW">🇰🇷 韓元</option><option value="CNY">🇨🇳 人民幣</option><option value="THB">🇹🇭 泰銖</option>
-                        </select>
-                        <input type="text" id="new-foreign-name" placeholder="外幣名稱 (如: JPY)" class="w-2/3 p-3 border rounded-xl">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 block mb-1">成員名單 (用逗號隔開，第一位是管理員)</label>
-                        <textarea id="new-members" placeholder="例如：小明, 小華, 大壮" class="w-full p-3 border rounded-xl h-24 font-bold text-lg"></textarea>
-                    </div>
-                    <button onclick="createNewBook()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg">立即開戶</button>
+        <div id="exist-login-zone" class="hidden mt-6 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">輸入帳簿代碼</h3>
+                <button onclick="resetPortal()" class="text-sm text-slate-400">↩ 返回</button>
+            </div>
+            <input type="text" id="login-id" placeholder="例如: Tokyo2026" class="w-full p-4 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition font-bold text-lg mb-4 text-center uppercase">
+            <button onclick="checkBookExist()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700">查詢帳簿</button>
+        </div>
+
+        <div id="identity-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
+            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                <label class="block text-sm font-bold text-blue-800 mb-2">👤 選擇您的名字</label>
+                <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-4 text-lg font-bold text-center"></select>
+                
+                <input type="password" id="login-pass" placeholder="🔑 輸入帳簿密碼" class="w-full p-3 border rounded-xl mb-3 text-center">
+                <div id="admin-pass-input-box" class="hidden">
+                    <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-200 bg-orange-50 mb-3 text-orange-800 text-center">
                 </div>
+                
+                <label class="flex justify-center items-center gap-2 mb-4 text-sm text-slate-500 font-bold">
+                    <input type="checkbox" id="auto-login-check" checked class="w-4 h-4"> 保持登入
+                </label>
+                <button onclick="lockIdentityAndEnter()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-700 transition">確認登入</button>
             </div>
         </div>
     </div>
@@ -294,6 +285,15 @@
                                 <div><label>帳簿密碼</label><input type="text" id="set-book-pass" class="w-full p-2 rounded border mt-1"></div>
                                 <div><label>管理密碼</label><input type="text" id="set-admin-pass" class="w-full p-2 rounded border mt-1"></div>
                             </div>
+                            
+                            <div class="border-t pt-4 mt-4">
+                                <label class="font-bold text-orange-600 block mb-2">⚠️ 修改帳簿 ID (危險操作)</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="new-book-id-admin" class="w-2/3 p-2 rounded border border-orange-200 bg-orange-50" placeholder="輸入新 ID">
+                                    <button onclick="changeBookId()" class="w-1/3 bg-orange-500 text-white rounded font-bold shadow hover:bg-orange-600">確認修改</button>
+                                </div>
+                            </div>
+
                             <button onclick="updateSettings()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold mt-2">儲存設定</button>
                         </div>
                         <div class="border-t pt-4 space-y-3">
@@ -348,6 +348,18 @@
             }
         };
 
+        function showLoginInput(type) {
+            document.getElementById('portal-buttons').classList.add('hidden');
+            // 只保留進入舊帳簿邏輯
+            document.getElementById('exist-login-zone').classList.remove('hidden');
+            const mem = localStorage.getItem('trip_book_id_memory');
+            if(mem) document.getElementById('login-id').value = mem;
+        }
+        function resetPortal() {
+            document.getElementById('portal-buttons').classList.remove('hidden');
+            document.getElementById('exist-login-zone').classList.add('hidden');
+        }
+
         function checkBookExist() {
             const id = document.getElementById('login-id').value.trim();
             if (!id) return alert("請輸入ID");
@@ -359,41 +371,18 @@
                 const data = s.val();
                 if (data) {
                     db = data; 
-                    if(!db.items) db.items = [];
-                    if(!db.members) db.members = [];
+                    if(!db.items) db.items = []; 
+                    if(!db.members) db.members = []; 
                     renderUserSelect();
-                    document.getElementById('new-book-zone').classList.add('hidden');
+                    document.getElementById('exist-login-zone').classList.add('hidden');
                     document.getElementById('identity-zone').classList.remove('hidden');
                 } else {
-                    document.getElementById('new-book-zone').classList.remove('hidden');
-                    document.getElementById('identity-zone').classList.add('hidden');
-                    alert("查無此帳簿，請填寫下方資料建立新帳簿");
+                    alert("❌ 查無此帳簿，請確認 ID");
                 }
+            }, (error) => {
+                document.getElementById('loading-mask').classList.add('hidden');
+                alert("連線錯誤，請檢查網路：" + error.message);
             });
-        }
-
-        function createNewBook() {
-            const id = document.getElementById('login-id').value.trim();
-            const pass = document.getElementById('secure-code').value.trim();
-            const members = document.getElementById('new-members').value.split(/[,，\n\s]+/).map(m=>m.trim()).filter(m=>m);
-            const subName = document.getElementById('new-foreign-name').value.trim() || "外幣";
-            
-            if (!id || !pass || members.length < 1) return alert("資料不全，請確認ID、密碼與成員名單");
-            
-            db = { id, pass, members, subName, manager: members[0], adminPass: "1234", rate: 0.22, items: [], isSealed: false };
-            
-            document.getElementById('loading-mask').classList.remove('hidden');
-            
-            rdb.ref('books/' + db.id).set(db)
-                .then(() => {
-                    document.getElementById('loading-mask').classList.add('hidden');
-                    alert("✅ 帳簿建立成功！請登入");
-                    checkBookExist(); 
-                })
-                .catch(error => {
-                    document.getElementById('loading-mask').classList.add('hidden');
-                    alert("❌ 建立失敗: " + error.message);
-                });
         }
 
         function lockIdentityAndEnter() {
@@ -500,6 +489,44 @@
             } catch(e) { return 0; }
         }
 
+        // 修改帳簿 ID 功能
+        async function changeBookId() {
+            if(db.isSealed) return alert("帳簿已封存");
+            const newId = document.getElementById('new-book-id-admin').value.trim();
+            if(!newId) return alert("請輸入新 ID");
+            if(newId === db.id) return alert("ID 未變更");
+
+            document.getElementById('loading-mask').classList.remove('hidden');
+            
+            // 檢查新 ID 是否已存在
+            const snap = await rdb.ref('books/' + newId).once('value');
+            if(snap.exists()) {
+                document.getElementById('loading-mask').classList.add('hidden');
+                return alert("此 ID 已存在，請換一個");
+            }
+
+            // 複製資料到新 ID
+            const oldId = db.id;
+            db.id = newId;
+            
+            try {
+                await rdb.ref('books/' + newId).set(db); // 寫入新位置
+                await rdb.ref('books/' + oldId).remove(); // 刪除舊位置
+                
+                // 更新本地儲存
+                localStorage.setItem('trip_auto_id', newId);
+                localStorage.setItem('trip_book_id_memory', newId);
+                
+                alert("ID 修改成功！即將重新載入");
+                location.reload();
+            } catch(e) {
+                document.getElementById('loading-mask').classList.add('hidden');
+                alert("修改失敗: " + e.message);
+                // 還原 db.id
+                db.id = oldId;
+            }
+        }
+
         function updateSealUI() {
             const badge = document.getElementById('seal-badge');
             const btnSeal = document.getElementById('btn-seal');
@@ -519,6 +546,7 @@
         function refreshUI(shouldSave = true) {
             if (shouldSave) save();
             updateSealUI();
+            // 防呆機制：(db.items || []) 確保空帳本不會崩潰
             const curItems = (db.items || []).filter(i => i.cur === currentCur);
             const totalFund = curItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
             const totalSpend = curItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
@@ -543,7 +571,6 @@
             const sortFactor = isSortDesc ? 1 : -1;
             const list = (db.items || []).filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
-            // Helper function for grouping by date
             function renderGroupedList(items, renderer) {
                 if (items.length === 0) return noData();
                 const grouped = {};
