@@ -316,6 +316,7 @@
         let SMode = 'MIX';
         let chartInstance = null;
         
+        // 僅分帳金額使用 (保留小數點第1位)
         const round1 = (num) => Math.round(num * 10) / 10;
 
         window.onload = function() {
@@ -482,9 +483,11 @@
             const curItems = db.items.filter(i => i.cur === currentCur);
             const totalFund = curItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
             const totalSpend = curItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
-            document.getElementById('sum-income').innerText = `${round1(totalFund)}`;
-            document.getElementById('sum-expense').innerText = `${round1(totalSpend)}`;
-            document.getElementById('sum-balance').innerText = `${round1(totalFund - totalSpend)}`;
+            
+            // 總計顯示：四捨五入至個位 (Math.round)
+            document.getElementById('sum-income').innerText = `${Math.round(totalFund)}`;
+            document.getElementById('sum-expense').innerText = `${Math.round(totalSpend)}`;
+            document.getElementById('sum-balance').innerText = `${Math.round(totalFund - totalSpend)}`;
             
             renderLists();
             renderLedger();
@@ -518,9 +521,10 @@
                     html += listRow(i, subFn(i), color, amtPrefix, checkEdit);
                 });
                 
+                // 小計/總計：四捨五入至個位
                 html += `<div class="p-3 bg-slate-50 border-t-2 border-slate-200 text-right mt-2 rounded-lg">
                     <span class="text-sm font-bold text-slate-500 mr-2">${showTotal ? '總計' : '小計'}</span>
-                    <span class="font-black text-2xl ${color} amt-text">${amtPrefix}${round1(total)}</span>
+                    <span class="font-black text-2xl ${color} amt-text">${amtPrefix}${Math.round(total)}</span>
                 </div>`;
                 
                 container.innerHTML = html;
@@ -542,10 +546,11 @@
             if(list.filter(i => i.type === 'public').length > 0) {
                  const bal = sumIncome - sumExp;
                  const balColor = bal >= 0 ? 'text-blue-600' : 'text-red-600';
+                 // 公帳結餘：四捨五入至個位
                  document.getElementById('public-exp-list').innerHTML += `
                     <div class="mt-4 p-4 bg-white border-2 border-slate-200 rounded-xl text-center shadow-sm">
                         <div class="text-sm font-bold text-slate-500 mb-1">公帳結餘</div>
-                        <div class="font-black text-3xl ${balColor} amt-text">${round1(bal)}</div>
+                        <div class="font-black text-3xl ${balColor} amt-text">${Math.round(bal)}</div>
                     </div>
                  `;
             }
@@ -568,8 +573,10 @@
         function listRow(i, sub, color, prefix, canEditFn) {
             const isCanEdit = (typeof canEditFn === 'function') ? canEditFn(i) : canEditFn;
             let amtDisp = prefix;
-            if(prefix === '' && i.type === 'advance') amtDisp = round1(i.amt);
-            else if (prefix !== '' && i.type !== 'advance') amtDisp = prefix + round1(i.amt);
+            
+            // 列表中的單筆總金額：四捨五入至個位 (Math.round)
+            if(prefix === '' && i.type === 'advance') amtDisp = Math.round(i.amt);
+            else if (prefix !== '' && i.type !== 'advance') amtDisp = prefix + Math.round(i.amt);
 
             const editBtn = (!db.isSealed && isCanEdit) ? `<button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : '';
             const icon = i.cat ? i.cat.split(' ')[0] : '💸';
@@ -685,6 +692,7 @@
             let sums = { pf: 0, pc: 0, ap: 0, ac: 0, pp: 0 };
 
             list.forEach(i => {
+                // 分帳金額：保留小數點1位
                 const share = round1(i.amt / (i.splitters?.length || 1));
                 const icon = i.cat ? i.cat.split(' ')[0] : '💸';
                 
@@ -700,59 +708,58 @@
                     htmls.pc += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
                 }
                 
-                // 代墊往來
+                // 代墊往來 - 我墊錢 (顯示總金額，四捨五入至個位)
                 if (i.type === 'advance' && i.payer === currentUser) {
                     sums.ap += i.amt;
-                    htmls.ap += lRow(i.date, `${icon} ${i.title}`, "text-green-600", `+${round1(i.amt)}`, `(我) ➡ (${i.splitters.join(',')})`);
+                    htmls.ap += lRow(i.date, `${icon} ${i.title}`, "text-green-600", `+${Math.round(i.amt)}`, `(我) ➡ (${i.splitters.join(',')})`);
                 }
+                // 代墊往來 - 我應付 (顯示分攤金額，保留小數點1位)
                 if (i.type === 'advance' && i.splitters.includes(currentUser)) {
                     sums.ac += share;
                     htmls.ac += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`, `(${i.payer}) ➡ (${i.splitters.join(',')})`);
                 }
                 
-                // 個人支出
+                // 個人支出 (顯示總金額，四捨五入至個位)
                 if (i.type === 'personal' && i.payer === currentUser) {
                     sums.pp += i.amt;
-                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${round1(i.amt)}`);
+                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
                 }
             });
 
-            // 1. 公帳分攤內容 (分上下兩塊：預繳存入 / 消費抵扣)
+            // 小計與總計：四捨五入至個位
             const publicContent = `
                 <div class="font-bold text-xs text-slate-500 mb-1 flex justify-between">
                     <span>預繳存入</span>
-                    <span class="text-green-600">預繳小計: ${round1(sums.pf)}</span>
+                    <span class="text-green-600">預繳小計: ${Math.round(sums.pf)}</span>
                 </div>
                 ${htmls.pf || '<p class="text-center text-slate-300 py-1">無</p>'}
                 <div class="border-t my-2 border-slate-200 border-dashed"></div>
                 <div class="font-bold text-xs text-slate-500 mb-1 flex justify-between">
                     <span>消費抵扣</span>
-                    <span class="text-red-600">消費小計: ${round1(sums.pc)}</span>
+                    <span class="text-red-600">消費小計: ${Math.round(sums.pc)}</span>
                 </div>
                 ${htmls.pc || '<p class="text-center text-slate-300 py-1">無</p>'}
             `;
 
-            // 7. 代墊往來內容 (分上下兩塊：我幫人墊 / 人幫我墊)
             const advanceContent = `
                 <div class="font-bold text-xs text-slate-500 mb-1 flex justify-between">
                     <span>我幫人墊 (應收)</span>
-                    <span class="text-green-600">代墊小計: ${round1(sums.ap)}</span>
+                    <span class="text-green-600">代墊小計: ${Math.round(sums.ap)}</span>
                 </div>
                 ${htmls.ap || '<p class="text-center text-slate-300 py-1">無</p>'}
                 <div class="border-t my-2 border-slate-200 border-dashed"></div>
                 <div class="font-bold text-xs text-slate-500 mb-1 flex justify-between">
                     <span>人幫我墊 (應付)</span>
-                    <span class="text-red-600">消費小計: ${round1(sums.ac)}</span>
+                    <span class="text-red-600">消費小計: ${Math.round(sums.ac)}</span>
                 </div>
                 ${htmls.ac || '<p class="text-center text-slate-300 py-1">無</p>'}
             `;
             
-            // 3. 個人支出內容 (消費小計)
             const personalContent = `
                 ${htmls.pp || '<p class="text-center text-slate-300 py-2">無資料</p>'}
                 <div class="p-2 border-t mt-2 text-right">
                     <span class="font-bold text-sm text-slate-500 mr-2">消費小計</span>
-                    <span class="font-black text-red-600 text-lg">${round1(sums.pp)}</span>
+                    <span class="font-black text-red-600 text-lg">${Math.round(sums.pp)}</span>
                 </div>
             `;
 
@@ -760,7 +767,7 @@
                 <details class="bg-white rounded-lg shadow-sm border border-slate-200 mb-4 overflow-hidden">
                     <summary class="p-3 font-bold cursor-pointer flex justify-between items-center bg-slate-50 hover:bg-slate-100">
                         <span class="${colorClass}">${title}</span>
-                        <span class="font-black text-black text-lg">${badgeLabel}: ${round1(sum)} ▼</span>
+                        <span class="font-black text-black text-lg">${badgeLabel}: ${Math.round(sum)} ▼</span>
                     </summary>
                     <div class="p-2 border-t border-slate-100 text-sm">
                         ${content}
@@ -768,8 +775,7 @@
                 </details>
             `;
 
-            // 4. 計算消費總計 (公帳消費 + 代墊消費 + 個人消費)
-            const totalConsumption = round1(sums.pc + sums.ac + sums.pp);
+            const totalConsumption = Math.round(sums.pc + sums.ac + sums.pp);
 
             const html = `
                 ${mkDetails('🔵 公帳分攤', 'text-slate-800', publicContent, (sums.pf - sums.pc))}
@@ -806,11 +812,11 @@
                 }
                 if (cost > 0) { cats[i.cat] = (cats[i.cat] || 0) + cost; total += cost; }
             });
-            document.getElementById('stats-total').innerText = `${round1(total)}`;
+            document.getElementById('stats-total').innerText = `${Math.round(total)}`;
             document.getElementById('stats-detail-list').innerHTML = Object.entries(cats).map(([cat, val]) => `
                 <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                     <span class="font-bold text-slate-600">${cat}</span>
-                    <span class="font-black text-blue-600 amt-text">${round1(val)}</span>
+                    <span class="font-black text-blue-600 amt-text">${Math.round(val)}</span>
                 </div>
             `).join('') || "無資料";
 
@@ -819,7 +825,7 @@
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(cats),
-                    datasets: [{ data: Object.values(cats).map(v => round1(v)), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] }]
+                    datasets: [{ data: Object.values(cats).map(v => Math.round(v)), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] }]
                 }, options: { responsive: true, maintainAspectRatio: false }
             });
         }
@@ -878,9 +884,9 @@
                 const s = stats[m];
                 tableHtml += `<tr class="border-b bg-white">
                     <td class="p-3 font-bold text-slate-800">${m}</td>
-                    <td class="p-3 text-green-600 font-black text-lg amt-text">${round1(s.paid)}</td>
-                    <td class="p-3 text-red-600 font-black text-lg amt-text">${round1(s.share)}</td>
-                    <td class="p-3 font-black text-lg amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${round1(s.bal)}</td>
+                    <td class="p-3 text-green-600 font-black text-lg amt-text">${Math.round(s.paid)}</td>
+                    <td class="p-3 text-red-600 font-black text-lg amt-text">${Math.round(s.share)}</td>
+                    <td class="p-3 font-black text-lg amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${Math.round(s.bal)}</td>
                 </tr>`;
             });
             tableHtml += `</tbody></table>
@@ -895,8 +901,8 @@
             }
 
             const potText = potBalance >= 0 ? 
-                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${round1(potBalance)}</span> (由 ${db.manager} 退還)` : 
-                `💸 公帳透支 <span class="text-red-600 font-bold">${round1(Math.abs(potBalance))}</span> (由 ${db.manager} 先墊)`;
+                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${Math.round(potBalance)}</span> (由 ${db.manager} 退還)` : 
+                `💸 公帳透支 <span class="text-red-600 font-bold">${Math.round(Math.abs(potBalance))}</span> (由 ${db.manager} 先墊)`;
             
             let receivers = [];
             let payers = [];
@@ -912,7 +918,7 @@
                 receivers.forEach(r => {
                     if (p.bal <= 0 || r.bal <= 0) return;
                     let amt = Math.min(p.bal, r.bal);
-                    logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：${round1(amt)}`);
+                    logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：${Math.round(amt)}`);
                     p.bal -= amt; r.bal -= amt;
                 });
             });
