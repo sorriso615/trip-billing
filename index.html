@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 穩定修復版</title>
+    <title>TripSplit 2026 終極修復版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -757,17 +757,17 @@
                 (i) => i.type === 'fund' ? '💰 預繳公帳' : `${i.title}`
             );
 
-            // 2. 代墊往來 (收入改為代墊總額)
+            // 2. 代墊往來 (重要更新：自付分攤也列入支出)
             const advList = [];
             list.forEach(i => {
                 if(i.type !== 'advance') return;
                 const share = Math.round(i.amt / (i.splitters?.length || 1));
                 
                 if (i.payer === currentUser) {
-                    // 我是 Payer -> 收入(應收) = 總額 (這筆錢是我出的)
+                    // 我是 Payer -> 收入(應收) = 總額
                     advList.push({ ...i, customType: 'income', customAmt: i.amt, customTitle: `幫墊: ${i.title} (總額)` });
                     
-                    // 如果我也在分攤名單內 -> 支出(應付) = 我的一份 (我雖然出了錢，但有一部分是我自己要負擔的)
+                    // 如果我也在分攤名單內 -> 支出(應付) = 我的一份
                     if (i.splitters.includes(currentUser) && share > 0) {
                         advList.push({ ...i, customType: 'expense', customAmt: share, customTitle: `自付: ${i.title}` });
                     }
@@ -873,7 +873,6 @@
             const expHtml = renderGroup(expenseItems, false);
             const total = totalInc - totalExp;
 
-            // 個人支付不顯示收入區塊
             const isPersonal = containerId.includes('personal');
             
             container.innerHTML = `
