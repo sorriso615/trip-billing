@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 專業結算版 (V3.1)</title>
+    <title>TripSplit 2026 穩定修復版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -295,7 +295,6 @@
                             <h4 class="font-bold text-slate-700">⚙️ 設定</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div><label>成員</label><input type="text" id="set-members" class="w-full p-2 rounded border mt-1"></div>
-                                
                                 <div>
                                     <label>幣別名稱 (快選)</label>
                                     <div class="flex gap-2 mt-1">
@@ -316,7 +315,6 @@
                                         <input type="text" id="set-sub-name" class="w-2/3 p-2 rounded border">
                                     </div>
                                 </div>
-
                                 <div><label>匯率</label><input type="number" id="set-rate" class="w-full p-2 rounded border mt-1" step="0.0001"></div>
                                 <div><label>管理員</label><select id="set-manager" class="w-full p-2 rounded border mt-1"></select></div>
                                 <div><label>帳簿密碼</label><input type="text" id="set-book-pass" class="w-full p-2 rounded border mt-1"></div>
@@ -353,7 +351,7 @@
         let chartInstance = null;
         let calcVal = "";
 
-        const SYSTEM_HASH = "9e70129204095066487570490906236166160350482599763590529819777174";
+        const SYSTEM_PASS = "djes.tyc-2026"; 
 
         window.onload = function() {
             const savedId = localStorage.getItem('trip_auto_id');
@@ -417,23 +415,21 @@
             });
         }
 
-        async function initiateCreateBook() {
+        function initiateCreateBook() {
             const id = document.getElementById('new-book-id-input').value.trim();
             if(!id) return alert("請輸入 ID");
             document.getElementById('loading-mask').classList.remove('hidden');
-            const snap = await rdb.ref('books/' + id).once('value');
-            document.getElementById('loading-mask').classList.add('hidden');
-            if(snap.exists()) return alert("此 ID 已被使用，請更換");
-            const inputPass = prompt("🔐 請輸入開新帳簿專用密碼：");
-            if(!inputPass) return;
-            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inputPass));
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            if(hashHex === SYSTEM_HASH) {
-                createDefaultBook(id);
-            } else {
-                alert("⛔ 密碼錯誤，無法開立新帳簿");
-            }
+            rdb.ref('books/' + id).once('value', (snap) => {
+                document.getElementById('loading-mask').classList.add('hidden');
+                if(snap.exists()) return alert("此 ID 已被使用，請更換");
+                const inputPass = prompt("🔐 請輸入開新帳簿專用密碼：");
+                if(!inputPass) return;
+                if(inputPass === SYSTEM_PASS) {
+                    createDefaultBook(id);
+                } else {
+                    alert("⛔ 密碼錯誤，無法開立新帳簿");
+                }
+            });
         }
 
         function createDefaultBook(id) {
@@ -466,6 +462,7 @@
             document.getElementById('login-portal').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('loading-mask').classList.add('hidden');
+            
             if(!db.members || db.members.length === 0) db.members = [currentUser || "Unknown"];
             
             if(currentUser === db.manager) {
@@ -495,15 +492,21 @@
             if(db.members.includes(currentUser)) payerSelect.value = currentUser;
             
             const splittersGrid = document.getElementById('splitters-grid');
-            splittersGrid.innerHTML = db.members.map(m=>`<label class="flex items-center gap-1 p-2 bg-white rounded border cursor-pointer hover:bg-slate-50"><input type="checkbox" name="splitter" value="${m}" checked> ${m}</label>`).join('');
+            splittersGrid.innerHTML = db.members.map(m=>`
+                <label class="flex items-center gap-1 p-2 bg-white rounded border cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="splitter" value="${m}" checked> ${m}
+                </label>
+            `).join('');
 
             updateSealUI();
+            
             if (currentUser !== db.manager) {
                 const pubOpt = document.getElementById('opt-public-pay');
                 pubOpt.disabled = true; pubOpt.innerText += " (限管理)";
                 document.getElementById('exp-path').value = 'advance';
                 togglePayerSelection();
             }
+
             startSync(); 
         }
 
@@ -553,9 +556,10 @@
         function refreshUI(shouldSave = true) {
             if (shouldSave) save();
             updateSealUI();
-            const curItems = db.items.filter(i => i.cur === currentCur);
+            const curItems = (db.items || []).filter(i => i.cur === currentCur);
             const totalFund = curItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
             const totalSpend = curItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
+            
             document.getElementById('sum-income').innerText = `${Math.round(totalFund)}`;
             document.getElementById('sum-expense').innerText = `${Math.round(totalSpend)}`;
             const bal = totalFund - totalSpend;
@@ -573,26 +577,32 @@
 
         function renderLists() {
             const sortFactor = isSortDesc ? 1 : -1;
-            const rawList = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
+            const rawList = (db.items || []).filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
             function renderGrouped(list, renderer) {
                 if(list.length === 0) return noData();
                 const grouped = {};
                 list.forEach(i => { if(!grouped[i.date]) grouped[i.date]=[]; grouped[i.date].push(i); });
+                
                 return Object.keys(grouped).sort((a,b) => sortFactor * b.localeCompare(a)).map(date => `
                     <div class="mb-4">
                         <div class="sticky top-0 bg-slate-100/95 p-2 px-3 rounded-lg text-slate-500 font-bold text-sm backdrop-blur-sm z-10 border border-slate-200 shadow-sm inline-block mb-2">📅 ${date}</div>
                         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                             ${grouped[date].map(renderer).join('')}
                         </div>
-                    </div>`).join('');
+                    </div>
+                `).join('');
             }
 
             const inc = rawList.filter(i => i.type === 'fund');
-            document.getElementById('income-list').innerHTML = renderGrouped(inc, i => listRow(i, `每人${Math.round(i.amt / (i.splitters?.length || db.members.length))}`, 'text-green-600', `+${Math.round(i.amt)}`, currentUser === db.manager));
+            document.getElementById('income-list').innerHTML = renderGrouped(inc, i => 
+                listRow(i, `每人${Math.round(i.amt / (i.splitters?.length || db.members.length))}`, 'text-green-600', `+${Math.round(i.amt)}`, currentUser === db.manager)
+            );
 
             const pub = rawList.filter(i => i.type === 'public');
-            document.getElementById('public-exp-list').innerHTML = renderGrouped(pub, i => listRow(i, `每人分攤${Math.round(i.amt / (i.splitters?.length || 1))}`, 'text-red-600', `-${Math.round(i.amt)}`, currentUser === db.manager || i.payer === currentUser));
+            document.getElementById('public-exp-list').innerHTML = renderGrouped(pub, i => 
+                listRow(i, `每人分攤${Math.round(i.amt / (i.splitters?.length || 1))}`, 'text-red-600', `-${Math.round(i.amt)}`, currentUser === db.manager || i.payer === currentUser)
+            );
 
             const myAdv = rawList.filter(i => i.type === 'advance' && i.payer === currentUser);
             document.getElementById('adv-my-list').innerHTML = renderGrouped(myAdv, i => {
@@ -607,7 +617,9 @@
             });
 
             const pvt = rawList.filter(i => i.type === 'personal' && i.payer === currentUser);
-            document.getElementById('pvt-list').innerHTML = renderGrouped(pvt, i => listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true));
+            document.getElementById('pvt-list').innerHTML = renderGrouped(pvt, i => 
+                listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true)
+            );
         }
 
         function listRow(i, sub, color, amt, canEdit) {
@@ -617,9 +629,14 @@
                 <div class="flex justify-between items-start">
                     <div class="flex gap-3">
                         <div class="text-2xl bg-slate-100 rounded-lg w-10 h-10 flex items-center justify-center">${icon}</div>
-                        <div><div class="font-bold text-slate-800">${i.title}</div><div class="text-xs text-slate-400 mt-1">${sub}</div></div>
+                        <div>
+                            <div class="font-bold text-slate-800">${i.title}</div>
+                            <div class="text-xs text-slate-400 mt-1">${sub}</div>
+                        </div>
                     </div>
-                    <div class="text-right"><div class="${color} font-black text-lg amt-text">${amt}</div></div>
+                    <div class="text-right">
+                        <div class="${color} font-black text-lg amt-text">${amt}</div>
+                    </div>
                 </div>
                 ${editBtn}
             </div>`;
@@ -634,17 +651,23 @@
             document.getElementById('exp-date').value = item.date;
             document.getElementById('exp-cat').value = item.cat || '❤️ 其他';
             document.getElementById('exp-title').value = item.title;
+            
             calcVal = item.amt.toString();
             document.getElementById('exp-amt-display').value = calcVal;
+
             document.getElementById('exp-path').value = item.type;
+            
             document.getElementById('form-header-text').innerHTML = "✏️ 編輯項目";
             document.getElementById('btn-submit').innerText = "確認修改";
             document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-lg shadow-lg";
             document.getElementById('btn-cancel-edit').classList.remove('hidden');
+            
             togglePayerSelection();
             if(item.type === 'advance') document.getElementById('payer-member').value = item.payer;
+            
             const checks = document.querySelectorAll('input[name="splitter"]');
             checks.forEach(c => c.checked = item.splitters ? item.splitters.includes(c.value) : false);
+
             document.getElementById('add-panel').open = true;
             document.getElementById('add-panel').scrollIntoView({ behavior: 'smooth' });
         }
@@ -665,6 +688,7 @@
             const editId = document.getElementById('edit-id').value;
             const amt = getCalcResult();
             if(amt <= 0) return alert("請輸入有效金額");
+            
             if(editId) updateRecord(editId, amt); else addRecord(amt);
         }
 
@@ -674,15 +698,19 @@
             const cat = document.getElementById('exp-cat').value;
             const type = document.getElementById('exp-path').value;
             if (!date || !title) return alert("請填寫日期與名稱");
+
             let splitters = [];
-            if (type === 'personal') { splitters = [currentUser]; } 
-            else {
+            if (type === 'personal') { 
+                splitters = [currentUser];
+            } else {
                 const checkboxes = document.querySelectorAll('input[name="splitter"]:checked');
                 splitters = Array.from(checkboxes).map(c => c.value);
                 if (splitters.length === 0) return alert("請至少選擇一位分攤成員");
             }
+
             let payer = (type === 'public') ? "公帳" : (type === 'personal' ? currentUser : document.getElementById('payer-member').value);
             if(type === 'advance' && !payer) payer = currentUser;
+
             db.items.push({ id: Date.now(), date, cat, title, amt, cur: currentCur, type, payer, splitters });
             refreshUI(); alert("✅ 記帳成功"); resetForm();
         }
@@ -693,13 +721,17 @@
             const title = document.getElementById('exp-title').value.trim();
             const cat = document.getElementById('exp-cat').value;
             const type = document.getElementById('exp-path').value;
+            
             let splitters = [];
-            if (type === 'personal') { splitters = [currentUser]; } 
-            else {
+            if (type === 'personal') { 
+                splitters = [currentUser];
+            } else {
                 const checkboxes = document.querySelectorAll('input[name="splitter"]:checked');
                 splitters = Array.from(checkboxes).map(c => c.value);
             }
+
             let payer = (type === 'public') ? "公帳" : (type === 'personal' ? currentUser : document.getElementById('payer-member').value);
+
             db.items[idx] = { ...db.items[idx], date, cat, title, amt, type, payer, splitters };
             refreshUI(); alert("✅ 修改完成"); resetForm();
         }
@@ -711,7 +743,7 @@
 
         // --- 優化後的核心邏輯 (Virtually Generated Entries) ---
         function renderLedger() {
-            const list = db.items.filter(i => i.cur === currentCur);
+            const list = (db.items || []).filter(i => i.cur === currentCur);
 
             // 1. 公帳分攤
             const pubList = list.filter(i => {
@@ -725,26 +757,22 @@
                 (i) => i.type === 'fund' ? '💰 預繳公帳' : `${i.title}`
             );
 
-            // 2. 代墊往來 (重要更新：自付分攤也列入支出)
+            // 2. 代墊往來 (收入改為代墊總額)
             const advList = [];
             list.forEach(i => {
                 if(i.type !== 'advance') return;
                 const share = Math.round(i.amt / (i.splitters?.length || 1));
                 
                 if (i.payer === currentUser) {
-                    // 收入: 別人欠我的 (總額 - 自付額)
-                    const myShare = i.splitters.includes(currentUser) ? share : 0;
-                    const receivable = i.amt - myShare; // 這是別人欠我的
-                    // *這裡改為顯示全額* 根據前一次需求，收入顯示「總代墊金額」
-                    // 若要顯示全額:
+                    // 我是 Payer -> 收入(應收) = 總額 (這筆錢是我出的)
                     advList.push({ ...i, customType: 'income', customAmt: i.amt, customTitle: `幫墊: ${i.title} (總額)` });
                     
-                    // 支出: 自付額
-                    if (myShare > 0) {
-                        advList.push({ ...i, customType: 'expense', customAmt: myShare, customTitle: `自付: ${i.title}` });
+                    // 如果我也在分攤名單內 -> 支出(應付) = 我的一份 (我雖然出了錢，但有一部分是我自己要負擔的)
+                    if (i.splitters.includes(currentUser) && share > 0) {
+                        advList.push({ ...i, customType: 'expense', customAmt: share, customTitle: `自付: ${i.title}` });
                     }
                 } else if (i.splitters.includes(currentUser)) {
-                    // 支出: 我欠別人的
+                    // 別人是 Payer，我有分攤 -> 支出(應付) = 我的一份
                     advList.push({ ...i, customType: 'expense', customAmt: share, customTitle: `${i.payer}墊: ${i.title}` });
                 }
             });
@@ -794,7 +822,6 @@
             const expHtml = renderGroup(expenseItems, false);
             const total = totalInc - totalExp;
 
-            // 修正：版面改為上下排列 (grid-cols-1)
             container.innerHTML = `
                 <div class="flex justify-between items-center mb-3 bg-slate-100 p-2 rounded text-sm font-bold">
                     <span>總結餘</span>
@@ -846,7 +873,7 @@
             const expHtml = renderGroup(expenseItems, false);
             const total = totalInc - totalExp;
 
-            // 修正：版面改為上下排列，且個人支付隱藏收入區
+            // 個人支付不顯示收入區塊
             const isPersonal = containerId.includes('personal');
             
             container.innerHTML = `
@@ -869,7 +896,7 @@
 
         function renderStats() {
             if(chartInstance) chartInstance.destroy();
-            const list = db.items.filter(i => i.cur === currentCur);
+            const list = (db.items || []).filter(i => i.cur === currentCur);
             const cats = {}; let total = 0;
             list.forEach(i => {
                 let cost = 0;
@@ -909,7 +936,7 @@
             db.members.forEach(m => stats[m] = { paid: 0, share: 0, bal: 0 });
             let potBalance = 0;
 
-            db.items.forEach(i => {
+            (db.items || []).forEach(i => {
                 let val = i.amt;
                 if (SMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
                 if (SMode === 'TWD' && i.cur !== 'TWD') return;
