@@ -250,6 +250,7 @@
                             <button id="btn-settle-sub" onclick="switchSettleMode('SUB')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">外幣</button>
                             <button id="btn-settle-mix" onclick="switchSettleMode('MIX')" class="flex-1 py-2 bg-slate-100 rounded text-sm font-bold">混合</button>
                         </div>
+                        <div id="pot-status-area"></div>
                         <div id="settle-table-area" class="mb-6"></div>
                         <div id="settle-transfer-area" class="border-t pt-4"></div>
                     </div>
@@ -851,6 +852,24 @@
                 }
             });
 
+            // --- 新增邏輯：公帳透支處理 ---
+            let potStatusHTML = "";
+            if (potBalance < 0) {
+                // 如果公帳透支，將虧損歸為管理員代墊
+                if (db.manager && stats[db.manager]) {
+                    const deficit = Math.abs(potBalance);
+                    stats[db.manager].paid += deficit; // 核心修改：加到管理員已付
+                    potStatusHTML = `<div class="bg-orange-50 p-3 rounded-lg text-sm text-orange-700 mb-4 border border-orange-200">⚠️ 公帳透支 <span class="font-bold">${Math.round(deficit)}</span> 已併入管理員的「預繳/代墊」計算</div>`;
+                    potBalance = 0; // 歸零，因為已經轉移給個人了
+                }
+            } else if (potBalance > 0) {
+                potStatusHTML = `<div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 mb-4 border border-blue-200">💰 公帳剩餘 <span class="font-bold">${Math.round(potBalance)}</span> (視為管理員負債，列入分帳)</div>`;
+            } else {
+                potStatusHTML = `<div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-500 mb-4 border border-slate-200">✅ 公帳收支平衡</div>`;
+            }
+            document.getElementById('pot-status-area').innerHTML = potStatusHTML;
+            // ---------------------------
+
             Object.keys(stats).forEach(m => { stats[m].bal = stats[m].paid - stats[m].share; });
 
             let tableHtml = `<table class="w-full text-sm text-center border-collapse rounded-lg overflow-hidden shadow-sm">
@@ -876,14 +895,11 @@
             const finalBalances = {};
             db.members.forEach(m => finalBalances[m] = stats[m].bal);
 
-            if (db.manager && finalBalances[db.manager] !== undefined) {
+            // 僅處理剩餘款 (透支已在上面處理完畢)
+            if (db.manager && finalBalances[db.manager] !== undefined && potBalance > 0) {
                 finalBalances[db.manager] -= potBalance;
             }
 
-            const potText = potBalance >= 0 ? 
-                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${Math.round(potBalance)}</span> (視為管理員負債，列入分帳)` : 
-                `💸 公帳透支 <span class="text-red-600 font-bold">${Math.round(Math.abs(potBalance))}</span> (視為管理員代墊，列入分帳)`;
-            
             let receivers = [];
             let payers = [];
             for (const [m, bal] of Object.entries(finalBalances)) {
@@ -904,7 +920,6 @@
             });
 
             document.getElementById('settle-transfer-area').innerHTML = `
-                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4 text-sm text-center shadow-sm">${potText}</div>
                 <h4 class="font-bold text-slate-700 mb-3 text-lg">💸 建議轉帳 (已結清所有帳目)</h4>
                 <div class="space-y-2 text-sm">
                     ${logs.length ? logs.map(l=>`<div class="bg-white p-4 border rounded-xl shadow-sm border-l-4 border-blue-500 flex items-center gap-2 text-base">${l}</div>`).join('') : '<div class="text-center text-slate-400 font-bold py-4">🎉 帳目已平，無需轉帳</div>'}
