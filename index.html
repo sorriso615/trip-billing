@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 專業結算版</title>
+    <title>TripSplit 2026 專業結算版 (V2.0)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -172,10 +172,13 @@
             <main class="space-y-4">
                 <details id="panel-pub" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>📊 公帳明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
+                        <span>📊 公帳明細</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSort(); event.preventDefault();" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 text-slate-500 border">🔃 排序</button>
+                            <span class="text-slate-400 arrow transition-transform">▼</span>
+                        </div>
                     </summary>
                     <div class="p-4 border-t border-slate-100 space-y-4">
-                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition font-bold text-slate-500">🔃 切換排序</button></div>
                         <div class="flex justify-between items-center"><h4 class="font-bold text-green-700">📥 公帳收入</h4></div>
                         <div id="income-list" class="space-y-4"></div>
                         <div class="flex justify-between items-center pt-4 border-t"><h4 class="font-bold text-red-700">📤 公帳支出</h4></div>
@@ -185,16 +188,31 @@
 
                 <details id="panel-adv" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>⚡ 個人代墊</span><span class="text-slate-400 arrow transition-transform">▼</span>
+                        <span>⚡ 個人代墊</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSort(); event.preventDefault();" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 text-slate-500 border">🔃 排序</button>
+                            <span class="text-slate-400 arrow transition-transform">▼</span>
+                        </div>
                     </summary>
-                    <div class="p-4 border-t border-slate-100">
-                        <div id="adv-list" class="space-y-4"></div>
+                    <div class="p-4 border-t border-slate-100 space-y-6">
+                        <div>
+                            <h4 class="font-bold text-green-700 mb-3 text-sm bg-green-50 p-2 rounded-lg inline-block border border-green-200">🟢 我先墊付 (別人欠我)</h4>
+                            <div id="adv-my-list" class="space-y-4"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-red-700 mb-3 text-sm bg-red-50 p-2 rounded-lg inline-block border border-red-200">🔴 別人代墊 (我欠別人)</h4>
+                            <div id="adv-other-list" class="space-y-4"></div>
+                        </div>
                     </div>
                 </details>
 
                 <details id="panel-pvt" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>👤 個人明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
+                        <span>👤 個人明細</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSort(); event.preventDefault();" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 text-slate-500 border">🔃 排序</button>
+                            <span class="text-slate-400 arrow transition-transform">▼</span>
+                        </div>
                     </summary>
                     <div class="p-4 border-t border-slate-100">
                         <div id="pvt-list" class="space-y-4"></div>
@@ -203,28 +221,33 @@
 
                 <details id="panel-ledger" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>📒 個人流水帳</span><span class="text-slate-400 arrow transition-transform">▼</span>
+                        <span>📒 個人流水帳</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSort(); event.preventDefault();" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 text-slate-500 border">🔃 排序</button>
+                            <span class="text-slate-400 arrow transition-transform">▼</span>
+                        </div>
                     </summary>
                     <div class="p-4 border-t border-slate-100 space-y-3">
+                        
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🔵 公帳分攤 (您應付的)</span><span class="arrow transition-transform">▼</span>
+                                <span>🔵 公帳分攤 (預繳 & 消費)</span><span class="arrow transition-transform">▼</span>
                             </summary>
-                            <div class="p-3 border-t bg-white" id="ledger-public"></div>
+                            <div class="p-3 border-t bg-white" id="ledger-public-content"></div>
                         </details>
                         
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🟣 個人支付 (自付紀錄)</span><span class="arrow transition-transform">▼</span>
+                                <span>🟠 代墊往來 (墊付 & 被墊)</span><span class="arrow transition-transform">▼</span>
                             </summary>
-                            <div class="p-3 border-t bg-white" id="ledger-personal"></div>
+                            <div class="p-3 border-t bg-white" id="ledger-advance-content"></div>
                         </details>
 
                         <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                             <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
-                                <span>🟠 代墊往來 (應收/應付)</span><span class="arrow transition-transform">▼</span>
+                                <span>🟣 個人支付 (自付)</span><span class="arrow transition-transform">▼</span>
                             </summary>
-                            <div class="p-3 border-t bg-white" id="ledger-advance"></div>
+                            <div class="p-3 border-t bg-white" id="ledger-personal-content"></div>
                         </details>
                     </div>
                 </details>
@@ -588,6 +611,7 @@
             const sortFactor = isSortDesc ? 1 : -1;
             const rawList = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
+            // 通用分組渲染函式
             function renderGrouped(list, renderer) {
                 if(list.length === 0) return noData();
                 const grouped = {};
@@ -603,22 +627,35 @@
                 `).join('');
             }
 
+            // 1. 公帳收入
             const inc = rawList.filter(i => i.type === 'fund');
             document.getElementById('income-list').innerHTML = renderGrouped(inc, i => 
                 listRow(i, `每人${Math.round(i.amt / (i.splitters?.length || db.members.length))}`, 'text-green-600', `+${Math.round(i.amt)}`, currentUser === db.manager)
             );
 
+            // 2. 公帳支出
             const pub = rawList.filter(i => i.type === 'public');
             document.getElementById('public-exp-list').innerHTML = renderGrouped(pub, i => 
                 listRow(i, `每人分攤${Math.round(i.amt / (i.splitters?.length || 1))}`, 'text-red-600', `-${Math.round(i.amt)}`, currentUser === db.manager || i.payer === currentUser)
             );
 
-            const adv = rawList.filter(i => i.type === 'advance');
-            document.getElementById('adv-list').innerHTML = renderGrouped(adv, i => {
-                const canEdit = currentUser === db.manager || i.payer === currentUser || i.splitters.includes(currentUser);
-                return listRow(i, `${i.payer}先墊 | 分攤:${i.splitters.join(',')}`, 'text-green-600', `${Math.round(i.amt)}`, canEdit);
+            // 3. 個人代墊 - 我先墊付 (我墊，別人欠我)
+            const myAdv = rawList.filter(i => i.type === 'advance' && i.payer === currentUser);
+            document.getElementById('adv-my-list').innerHTML = renderGrouped(myAdv, i => {
+                const perPerson = Math.round(i.amt / (i.splitters?.length || 1));
+                return listRow(i, `分攤: ${i.splitters.join(',')} (每人${perPerson})`, 'text-green-600', `+${Math.round(i.amt)}`, true);
             });
 
+            // 4. 個人代墊 - 別人代墊 (別人墊，我欠別人)
+            const otherAdv = rawList.filter(i => i.type === 'advance' && i.splitters.includes(currentUser) && i.payer !== currentUser);
+            document.getElementById('adv-other-list').innerHTML = renderGrouped(otherAdv, i => {
+                 const perPerson = Math.round(i.amt / (i.splitters?.length || 1));
+                 // 這裡只顯示自己要付的那一份，還是總額？習慣上顯示該筆交易總額，但備註說明我欠多少
+                 // 為了邏輯一致，代墊清單顯示該筆項目的總金額 (但標示是我欠的)
+                 return listRow(i, `${i.payer}先墊 (每人${perPerson})`, 'text-red-600', `總:${Math.round(i.amt)}`, false);
+            });
+
+            // 5. 個人明細
             const pvt = rawList.filter(i => i.type === 'personal' && i.payer === currentUser);
             document.getElementById('pvt-list').innerHTML = renderGrouped(pvt, i => 
                 listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true)
@@ -744,37 +781,115 @@
             if (confirm("確定刪除？")) { db.items = db.items.filter(i => i.id != id); refreshUI(); }
         }
 
+        // --- 全新設計的個人流水帳渲染邏輯 ---
         function renderLedger() {
-            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
-            let hPub = "", hPers = "", hAdv = "";
+            const list = db.items.filter(i => i.cur === currentCur);
 
-            list.forEach(i => {
-                const share = Math.round(i.amt / (i.splitters?.length || 1));
-                const icon = i.cat ? i.cat.split(' ')[0] : '💸';
-                
-                if (i.type === 'public' && i.splitters.includes(currentUser)) {
-                    hPub += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
-                }
-                if (i.type === 'fund' && i.splitters.includes(currentUser)) {
-                    hPub += lRow(i.date, `💰 預繳公帳`, "text-green-600", `+${share}`);
-                }
-
-                if (i.type === 'personal' && i.payer === currentUser) {
-                    hPers += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
-                }
-
-                if (i.type === 'advance') {
-                    if (i.payer === currentUser) {
-                        hAdv += lRow(i.date, `${icon} 我 ➡ ${i.splitters.join(',')}`, "text-green-600", `+${Math.round(i.amt)}`, `(我幫墊 ${i.title})`);
-                    } else if (i.splitters.includes(currentUser)) {
-                        hAdv += lRow(i.date, `${icon} ${i.payer} ➡ 我`, "text-red-600", `-${share}`, `(${i.payer}幫墊 ${i.title})`);
-                    }
-                }
+            // 1. 公帳分攤 (公帳預繳 + 公帳分攤)
+            const pubList = list.filter(i => {
+                if (i.type === 'fund' && i.splitters.includes(currentUser)) return true; // 預繳 (收入/Positive)
+                if (i.type === 'public' && i.splitters.includes(currentUser)) return true; // 分攤 (支出/Negative)
+                return false;
             });
+            renderLedgerSection('ledger-public-content', pubList, 
+                // 判斷是否為「收入」(正面資產累積)
+                (i) => (i.type === 'fund'),
+                // 計算金額
+                (i) => Math.round(i.amt / (i.splitters?.length || 1)),
+                // 標題顯示
+                (i) => i.type === 'fund' ? '💰 預繳公帳' : `${i.title}`
+            );
 
-            document.getElementById('ledger-public').innerHTML = hPub || '<div class="text-center text-slate-300 py-2">無資料</div>';
-            document.getElementById('ledger-personal').innerHTML = hPers || '<div class="text-center text-slate-300 py-2">無資料</div>';
-            document.getElementById('ledger-advance').innerHTML = hAdv || '<div class="text-center text-slate-300 py-2">無資料</div>';
+            // 2. 代墊往來 (我幫人墊 + 人幫我墊)
+            const advList = list.filter(i => i.type === 'advance' && (i.payer === currentUser || i.splitters.includes(currentUser)));
+            renderLedgerSection('ledger-advance-content', advList,
+                // 判斷是否為「收入」(應收帳款增加)
+                (i) => (i.payer === currentUser), 
+                // 計算金額
+                (i) => {
+                    const share = Math.round(i.amt / (i.splitters?.length || 1));
+                    // 如果是我墊付，金額是 (總額 - 我自己那份) = 別人欠我的
+                    if (i.payer === currentUser) {
+                        // 如果我也在分攤名單內，應收 = 總額 - 我的一份。如果我不在名單內(幫別人墊全部)，應收 = 總額。
+                        const myShare = i.splitters.includes(currentUser) ? share : 0;
+                        return i.amt - myShare;
+                    } 
+                    // 如果是別人墊，我欠別人 = 我的一份
+                    return share;
+                },
+                // 標題顯示
+                (i) => {
+                    if (i.payer === currentUser) return `我幫墊: ${i.title}`;
+                    return `${i.payer}幫墊: ${i.title}`;
+                }
+            );
+
+            // 3. 個人支付 (僅支出)
+            const pvtList = list.filter(i => i.type === 'personal' && i.payer === currentUser);
+            renderLedgerSection('ledger-personal-content', pvtList, 
+                () => false, // 全部視為支出
+                (i) => Math.round(i.amt),
+                (i) => i.title
+            );
+        }
+
+        // 通用流水帳區塊渲染器 (含收支分開、日期分組、小計)
+        function renderLedgerSection(containerId, items, isIncomeFunc, amtFunc, titleFunc) {
+            const container = document.getElementById(containerId);
+            if (items.length === 0) { container.innerHTML = '<div class="text-center text-slate-300 py-2">無資料</div>'; return; }
+
+            const sortFactor = isSortDesc ? 1 : -1;
+            
+            // 分離收入與支出
+            const incomeItems = items.filter(i => isIncomeFunc(i)).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
+            const expenseItems = items.filter(i => !isIncomeFunc(i)).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
+            
+            let totalInc = 0;
+            let totalExp = 0;
+
+            // 輔助渲染函式
+            const renderGroup = (list, isInc) => {
+                if(list.length === 0) return '<div class="text-xs text-slate-400 pl-4">無資料</div>';
+                const grouped = {};
+                list.forEach(i => { if(!grouped[i.date]) grouped[i.date]=[]; grouped[i.date].push(i); });
+                
+                return Object.keys(grouped).sort((a,b) => sortFactor * b.localeCompare(a)).map(date => {
+                    return `<div class="mb-2">
+                        <div class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 inline-block rounded mb-1 border border-slate-100">${date}</div>
+                        ${grouped[date].map(i => {
+                            const amt = amtFunc(i);
+                            if(amt === 0) return ''; // Skip self-advance fully split to self
+                            if(isInc) totalInc += amt; else totalExp += amt;
+                            const icon = i.cat ? i.cat.split(' ')[0] : '🔹';
+                            return `<div class="flex justify-between py-1 border-b border-slate-100 last:border-0 pl-2">
+                                <div class="text-sm text-slate-600 truncate max-w-[70%]">${icon} ${titleFunc(i)}</div>
+                                <div class="font-bold amt-text ${isInc?'text-green-600':'text-red-500'} text-sm">${isInc?'+':'-'}${amt}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+                }).join('');
+            };
+
+            const incHtml = renderGroup(incomeItems, true);
+            const expHtml = renderGroup(expenseItems, false);
+            const total = totalInc - totalExp;
+
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-3 bg-slate-100 p-2 rounded text-sm font-bold">
+                    <span>總結餘</span>
+                    <span class="${total>=0?'text-blue-600':'text-red-500'} amt-text">${total>=0?'+':''}${total}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="border-r pr-2 border-slate-100">
+                        <h5 class="text-xs font-bold text-green-700 mb-2 border-b border-green-100 pb-1">📈 收入/應收 (+${totalInc})</h5>
+                        ${incHtml}
+                    </div>
+                    <div class="pl-2">
+                        <h5 class="text-xs font-bold text-red-700 mb-2 border-b border-red-100 pb-1">📉 支出/應付 (-${totalExp})</h5>
+                        ${expHtml}
+                    </div>
+                </div>
+            `;
         }
 
         function lRow(d, t, c, a, sub='') {
@@ -852,15 +967,14 @@
                 }
             });
 
-            // --- 新增邏輯：公帳透支處理 ---
+            // 公帳透支處理
             let potStatusHTML = "";
             if (potBalance < 0) {
-                // 如果公帳透支，將虧損歸為管理員代墊
                 if (db.manager && stats[db.manager]) {
                     const deficit = Math.abs(potBalance);
-                    stats[db.manager].paid += deficit; // 核心修改：加到管理員已付
+                    stats[db.manager].paid += deficit; 
                     potStatusHTML = `<div class="bg-orange-50 p-3 rounded-lg text-sm text-orange-700 mb-4 border border-orange-200">⚠️ 公帳透支 <span class="font-bold">${Math.round(deficit)}</span> 已併入管理員的「預繳/代墊」計算</div>`;
-                    potBalance = 0; // 歸零，因為已經轉移給個人了
+                    potBalance = 0;
                 }
             } else if (potBalance > 0) {
                 potStatusHTML = `<div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 mb-4 border border-blue-200">💰 公帳剩餘 <span class="font-bold">${Math.round(potBalance)}</span> (視為管理員負債，列入分帳)</div>`;
@@ -868,7 +982,6 @@
                 potStatusHTML = `<div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-500 mb-4 border border-slate-200">✅ 公帳收支平衡</div>`;
             }
             document.getElementById('pot-status-area').innerHTML = potStatusHTML;
-            // ---------------------------
 
             Object.keys(stats).forEach(m => { stats[m].bal = stats[m].paid - stats[m].share; });
 
@@ -895,7 +1008,6 @@
             const finalBalances = {};
             db.members.forEach(m => finalBalances[m] = stats[m].bal);
 
-            // 僅處理剩餘款 (透支已在上面處理完畢)
             if (db.manager && finalBalances[db.manager] !== undefined && potBalance > 0) {
                 finalBalances[db.manager] -= potBalance;
             }
