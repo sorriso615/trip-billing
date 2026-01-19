@@ -212,6 +212,11 @@
                         <span>📈 統計分析</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
                     <div class="p-6 border-t border-slate-100">
+                        <div class="flex gap-2 mb-4">
+                            <button id="btn-stats-twd" onclick="switchStatsMode('TWD')" class="flex-1 py-2 rounded text-sm font-bold bg-slate-100 text-slate-600">台幣</button>
+                            <button id="btn-stats-sub" onclick="switchStatsMode('SUB')" class="flex-1 py-2 rounded text-sm font-bold bg-slate-100 text-slate-600">外幣</button>
+                            <button id="btn-stats-mix" onclick="switchStatsMode('MIX')" class="flex-1 py-2 rounded text-sm font-bold bg-slate-100 text-slate-600">混合</button>
+                        </div>
                         <div class="mb-6 text-center"><p class="text-slate-500 text-sm">您的總支出</p><p id="stats-total" class="text-3xl font-black text-blue-600 mt-1">0</p></div>
                         <div class="relative h-64 w-full mb-6"><canvas id="expenseChart"></canvas></div>
                         <div id="stats-detail-list" class="space-y-2"></div>
@@ -313,7 +318,12 @@
         let currentUser = "";
         let currentCur = "TWD"; 
         let isSortDesc = true; 
+        
+        // 模式變數：SMode(結算), LMode(流水帳), StMode(統計)
         let SMode = 'MIX';
+        let LMode = 'MIX';
+        let StMode = 'MIX';
+        
         let chartInstance = null;
         
         // 僅分帳金額使用 (保留小數點第1位)
@@ -484,7 +494,6 @@
             const totalFund = curItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
             const totalSpend = curItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
             
-            // 總計顯示：四捨五入至個位 (Math.round)
             document.getElementById('sum-income').innerText = `${Math.round(totalFund)}`;
             document.getElementById('sum-expense').innerText = `${Math.round(totalSpend)}`;
             document.getElementById('sum-balance').innerText = `${Math.round(totalFund - totalSpend)}`;
@@ -521,7 +530,6 @@
                     html += listRow(i, subFn(i), color, amtPrefix, checkEdit);
                 });
                 
-                // 小計/總計：四捨五入至個位
                 html += `<div class="p-3 bg-slate-50 border-t-2 border-slate-200 text-right mt-2 rounded-lg">
                     <span class="text-sm font-bold text-slate-500 mr-2">${showTotal ? '總計' : '小計'}</span>
                     <span class="font-black text-2xl ${color} amt-text">${amtPrefix}${Math.round(total)}</span>
@@ -546,7 +554,6 @@
             if(list.filter(i => i.type === 'public').length > 0) {
                  const bal = sumIncome - sumExp;
                  const balColor = bal >= 0 ? 'text-blue-600' : 'text-red-600';
-                 // 公帳結餘：四捨五入至個位
                  document.getElementById('public-exp-list').innerHTML += `
                     <div class="mt-4 p-4 bg-white border-2 border-slate-200 rounded-xl text-center shadow-sm">
                         <div class="text-sm font-bold text-slate-500 mb-1">公帳結餘</div>
@@ -574,7 +581,6 @@
             const isCanEdit = (typeof canEditFn === 'function') ? canEditFn(i) : canEditFn;
             let amtDisp = prefix;
             
-            // 列表中的單筆總金額：四捨五入至個位 (Math.round)
             if(prefix === '' && i.type === 'advance') amtDisp = Math.round(i.amt);
             else if (prefix !== '' && i.type !== 'advance') amtDisp = prefix + Math.round(i.amt);
 
@@ -685,15 +691,38 @@
         }
 
         function renderLedger() {
+            // 2. 更新按鈕樣式
+            const btnClass = "flex-1 py-2 rounded text-sm font-bold transition ";
+            const active = "bg-blue-600 text-white shadow";
+            const inactive = "bg-slate-100 text-slate-600 hover:bg-slate-200";
+
+            // 2. 插入按鈕 HTML
+            const buttonsHtml = `
+                <div class="flex gap-2 mb-4">
+                    <button onclick="switchLedgerMode('TWD')" class="${btnClass + (LMode==='TWD' ? active : inactive)}">台幣</button>
+                    <button onclick="switchLedgerMode('SUB')" class="${btnClass + (LMode==='SUB' ? active : inactive)}">外幣</button>
+                    <button onclick="switchLedgerMode('MIX')" class="${btnClass + (LMode==='MIX' ? active : inactive)}">混合</button>
+                </div>
+            `;
+
             const sortFactor = isSortDesc ? 1 : -1;
-            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
+            
+            // 2. 根據 LMode 過濾列表
+            const list = db.items.filter(i => {
+                if(LMode === 'TWD') return i.cur === 'TWD';
+                if(LMode === 'SUB') return i.cur === 'SUB';
+                return true; // MIX
+            }).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
             
             let htmls = { pf: "", pc: "", ap: "", ac: "", pp: "" };
             let sums = { pf: 0, pc: 0, ap: 0, ac: 0, pp: 0 };
 
             list.forEach(i => {
-                // 分帳金額：保留小數點1位
-                const share = round1(i.amt / (i.splitters?.length || 1));
+                // 2. 若為混合模式且項目為外幣，進行匯率換算
+                let val = i.amt;
+                if (LMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
+
+                const share = round1(val / (i.splitters?.length || 1));
                 const icon = i.cat ? i.cat.split(' ')[0] : '💸';
                 
                 // 1. 恢復公帳預繳 (fund)
@@ -708,25 +737,24 @@
                     htmls.pc += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
                 }
                 
-                // 代墊往來 - 我墊錢 (顯示總金額，四捨五入至個位)
+                // 代墊往來 - 我墊錢
                 if (i.type === 'advance' && i.payer === currentUser) {
-                    sums.ap += i.amt;
-                    htmls.ap += lRow(i.date, `${icon} ${i.title}`, "text-green-600", `+${Math.round(i.amt)}`, `(我) ➡ (${i.splitters.join(',')})`);
+                    sums.ap += val;
+                    htmls.ap += lRow(i.date, `${icon} ${i.title}`, "text-green-600", `+${Math.round(val)}`, `(我) ➡ (${i.splitters.join(',')})`);
                 }
-                // 代墊往來 - 我應付 (顯示分攤金額，保留小數點1位)
+                // 代墊往來 - 我應付
                 if (i.type === 'advance' && i.splitters.includes(currentUser)) {
                     sums.ac += share;
                     htmls.ac += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`, `(${i.payer}) ➡ (${i.splitters.join(',')})`);
                 }
                 
-                // 個人支出 (顯示總金額，四捨五入至個位)
+                // 個人支出
                 if (i.type === 'personal' && i.payer === currentUser) {
-                    sums.pp += i.amt;
-                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
+                    sums.pp += val;
+                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(val)}`);
                 }
             });
 
-            // 小計與總計：四捨五入至個位
             const publicContent = `
                 <div class="font-bold text-xs text-slate-500 mb-1 flex justify-between">
                     <span>預繳存入</span>
@@ -755,10 +783,11 @@
                 ${htmls.ac || '<p class="text-center text-slate-300 py-1">無</p>'}
             `;
             
+            // 1. 將 "消費小計" 改為 "小計"
             const personalContent = `
                 ${htmls.pp || '<p class="text-center text-slate-300 py-2">無資料</p>'}
                 <div class="p-2 border-t mt-2 text-right">
-                    <span class="font-bold text-sm text-slate-500 mr-2">消費小計</span>
+                    <span class="font-bold text-sm text-slate-500 mr-2">小計</span>
                     <span class="font-black text-red-600 text-lg">${Math.round(sums.pp)}</span>
                 </div>
             `;
@@ -780,14 +809,15 @@
             const html = `
                 ${mkDetails('🔵 公帳分攤', 'text-slate-800', publicContent, (sums.pf - sums.pc))}
                 ${mkDetails('🟠 代墊往來', 'text-orange-600', advanceContent, (sums.ap - sums.ac))}
-                ${mkDetails('🟣 個人支出', 'text-purple-600', personalContent, sums.pp, "消費小計")}
+                ${mkDetails('🟣 個人支出', 'text-purple-600', personalContent, sums.pp, "小計")}
                 
                 <div class="mt-4 p-4 bg-slate-800 text-white rounded-xl shadow-lg flex justify-between items-center">
                     <span class="font-bold text-lg">💰 消費總計</span>
                     <span class="font-black text-3xl text-yellow-300 amt-text">${totalConsumption}</span>
                 </div>
             `;
-            document.getElementById('ledger-content').innerHTML = html;
+            
+            document.getElementById('ledger-content').innerHTML = buttonsHtml + html;
         }
 
         function lRow(d, t, c, a, details='') {
@@ -802,13 +832,32 @@
 
         function renderStats() {
             if(chartInstance) chartInstance.destroy();
-            const list = db.items.filter(i => i.cur === currentCur);
+
+            // 2. 更新 Stats 按鈕樣式
+            const btnClass = "flex-1 py-2 rounded text-sm font-bold transition ";
+            const active = "bg-blue-600 text-white shadow";
+            const inactive = "bg-slate-100 text-slate-600 hover:bg-slate-200";
+            
+            document.getElementById('btn-stats-twd').className = btnClass + (StMode==='TWD' ? active : inactive);
+            document.getElementById('btn-stats-sub').className = btnClass + (StMode==='SUB' ? active : inactive);
+            document.getElementById('btn-stats-mix').className = btnClass + (StMode==='MIX' ? active : inactive);
+
+            // 2. 根據 StMode 過濾與換算
+            const list = db.items.filter(i => {
+                if(StMode === 'TWD') return i.cur === 'TWD';
+                if(StMode === 'SUB') return i.cur === 'SUB';
+                return true;
+            });
+
             const cats = {}; let total = 0;
             list.forEach(i => {
+                let val = i.amt;
+                if (StMode === 'MIX' && i.cur === 'SUB') val = i.amt * db.rate;
+
                 let cost = 0;
-                if (i.type === 'personal' && i.payer === currentUser) cost = i.amt;
+                if (i.type === 'personal' && i.payer === currentUser) cost = val;
                 else if ((i.type === 'public' || i.type === 'advance') && i.splitters.includes(currentUser)) {
-                    cost = round1(i.amt / i.splitters.length);
+                    cost = round1(val / i.splitters.length);
                 }
                 if (cost > 0) { cats[i.cat] = (cats[i.cat] || 0) + cost; total += cost; }
             });
@@ -930,6 +979,10 @@
                     ${logs.length ? logs.map(l=>`<div class="bg-white p-3 border rounded shadow-sm border-l-4 border-blue-500 flex items-center gap-2">${l}</div>`).join('') : '<div class="text-center text-slate-400">帳目已平，無需轉帳</div>'}
                 </div>`;
         }
+
+        // 2. 切換模式的函式
+        function switchLedgerMode(m) { LMode = m; refreshUI(false); }
+        function switchStatsMode(m) { StMode = m; refreshUI(false); }
 
         function switchSettleMode(m) { SMode = m; refreshUI(false); }
         function switchCurrency(c) { 
