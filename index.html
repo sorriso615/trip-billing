@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripSplit 2026 最終結算版</title>
+    <title>TripSplit 2026 專業結算版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -11,8 +11,8 @@
 
     <style>
         :root { font-size: 16px; }
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #334155; }
-        input, select, button, textarea { font-size: 16px; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; color: #334155; }
+        input, select, button, textarea { font-size: 16px; outline: none; }
         .amt-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; }
         .currency-active { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
         
@@ -23,6 +23,12 @@
         details[open] summary ~ * { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* 計算機按鈕樣式 */
+        .calc-btn { background: #f8fafc; border: 1px solid #cbd5e1; font-weight: bold; font-size: 1.25rem; padding: 10px; border-radius: 8px; touch-action: manipulation; }
+        .calc-btn:active { background: #e2e8f0; transform: scale(0.95); }
+        .calc-op { color: #2563eb; background: #eff6ff; }
+        .calc-enter { background: #3b82f6; color: white; border-color: #2563eb; }
+
         /* RWD 設定 */
         @media (min-width: 1024px) {
             .app-container { display: grid; grid-template-columns: 450px 1fr; gap: 24px; align-items: start; }
@@ -30,55 +36,58 @@
         }
     </style>
 </head>
-<body class="p-4 lg:p-8">
+<body class="p-4 lg:p-8 min-h-screen">
 
-    <div id="loading-mask" class="fixed inset-0 bg-white/90 z-[60] flex flex-col items-center justify-center hidden">
+    <div id="loading-mask" class="fixed inset-0 bg-white/95 z-[60] flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
         <div class="text-slate-500 font-bold text-lg" id="loading-text">資料同步中...</div>
     </div>
 
-    <div id="login-page" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
-        <h1 class="text-3xl font-black text-center text-slate-800 mb-6">TripSplit 2026</h1>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1">📘 帳簿代碼 (ID)</label>
-                <input type="text" id="login-id" placeholder="例如: Tokyo2026" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition">
-            </div>
-            <button onclick="checkBookExist()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-900 transition active:scale-95">進入帳簿</button>
-            
-            <div id="identity-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="block text-sm font-bold text-slate-600 mb-2">👤 選擇您的名字</label>
-                    <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-3 text-lg font-bold"></select>
-                    
-                    <input type="password" id="login-pass" placeholder="🔑 輸入帳簿密碼" class="w-full p-3 border rounded-xl mb-3">
-                    <div id="admin-pass-input-box" class="hidden">
-                        <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-200 bg-orange-50 mb-3 text-orange-800">
-                    </div>
-                    
-                    <label class="flex items-center gap-2 mb-3 text-sm text-slate-500">
-                        <input type="checkbox" id="auto-login-check" checked> 保持登入
-                    </label>
-                    <button onclick="lockIdentityAndEnter()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-700 transition">確認登入</button>
-                </div>
-            </div>
+    <div id="login-portal" class="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl mt-10 border border-slate-100">
+        <h1 class="text-4xl font-black text-center text-slate-800 mb-2">TripSplit</h1>
+        <p class="text-center text-slate-400 mb-8 font-bold tracking-widest">2026 EDITION</p>
+        
+        <div id="portal-buttons" class="space-y-4">
+            <button onclick="showLoginInput('EXIST')" class="w-full bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-2xl font-black text-xl hover:bg-slate-50 hover:border-blue-400 transition shadow-sm flex items-center justify-center gap-2">
+                📂 進入舊帳簿
+            </button>
+            <button onclick="showLoginInput('NEW')" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-black text-xl hover:bg-slate-900 transition shadow-lg flex items-center justify-center gap-2">
+                🆕 建立新帳簿
+            </button>
+        </div>
 
-            <div id="new-book-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
-                <h3 class="font-black text-lg mb-3 text-slate-700">🆕 查無此ID，建立新帳簿？</h3>
-                <div class="space-y-3">
-                    <input type="password" id="secure-code" placeholder="設定一組密碼" class="w-full p-3 border rounded-xl">
-                    <div class="flex gap-2">
-                        <select onchange="document.getElementById('new-foreign-name').value=this.value" class="w-1/3 p-3 border rounded-xl bg-slate-50 text-sm font-bold text-center">
-                            <option value="">選幣別</option><option value="JPY">🇯🇵 日幣</option><option value="USD">🇺🇸 美金</option><option value="EUR">🇪🇺 歐元</option><option value="KRW">🇰🇷 韓元</option><option value="CNY">🇨🇳 人民幣</option><option value="THB">🇹🇭 泰銖</option>
-                        </select>
-                        <input type="text" id="new-foreign-name" placeholder="外幣名稱 (如: JPY)" class="w-2/3 p-3 border rounded-xl">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 block mb-1">成員名單 (用逗號隔開，第一位是管理員)</label>
-                        <textarea id="new-members" placeholder="例如：小明, 小華, 大壮" class="w-full p-3 border rounded-xl h-24 font-bold text-lg"></textarea>
-                    </div>
-                    <button onclick="createNewBook()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg">立即開戶</button>
+        <div id="exist-login-zone" class="hidden mt-6 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">輸入帳簿代碼</h3>
+                <button onclick="resetPortal()" class="text-sm text-slate-400">↩ 返回</button>
+            </div>
+            <input type="text" id="login-id" placeholder="例如: Tokyo2026" class="w-full p-4 border rounded-xl bg-slate-50 focus:ring-2 ring-blue-400 outline-none transition font-bold text-lg mb-4 text-center uppercase">
+            <button onclick="checkBookExist()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700">查詢帳簿</button>
+        </div>
+
+        <div id="new-create-zone" class="hidden mt-6 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">設定新帳簿 ID</h3>
+                <button onclick="resetPortal()" class="text-sm text-slate-400">↩ 返回</button>
+            </div>
+            <input type="text" id="new-book-id-input" placeholder="請設定 ID (英數)" class="w-full p-4 border rounded-xl bg-slate-50 focus:ring-2 ring-green-400 outline-none transition font-bold text-lg mb-4 text-center uppercase">
+            <button onclick="initiateCreateBook()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-green-700">建立帳簿</button>
+        </div>
+
+        <div id="identity-zone" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200">
+            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                <label class="block text-sm font-bold text-blue-800 mb-2">👤 選擇您的名字</label>
+                <select id="user-select" class="w-full p-3 border rounded-xl bg-white mb-4 text-lg font-bold text-center"></select>
+                
+                <input type="password" id="login-pass" placeholder="🔑 輸入帳簿密碼" class="w-full p-3 border rounded-xl mb-3 text-center">
+                <div id="admin-pass-input-box" class="hidden">
+                    <input type="password" id="admin-login-pass" placeholder="🛡️ 管理員密碼" class="w-full p-3 border rounded-xl border-orange-200 bg-orange-50 mb-3 text-orange-800 text-center">
                 </div>
+                
+                <label class="flex justify-center items-center gap-2 mb-4 text-sm text-slate-500 font-bold">
+                    <input type="checkbox" id="auto-login-check" checked class="w-4 h-4"> 保持登入
+                </label>
+                <button onclick="lockIdentityAndEnter()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-700 transition">確認登入</button>
             </div>
         </div>
     </div>
@@ -87,47 +96,56 @@
         <header class="bg-white p-4 lg:p-6 rounded-2xl shadow-lg mb-6 transition-all duration-300">
             <div class="flex justify-between items-center mb-4 border-b pb-4">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-                    <span id="display-user" class="text-base font-normal bg-slate-100 px-2 py-1 rounded-lg"></span>
+                    <span id="display-user" class="text-base font-normal bg-slate-100 px-3 py-1 rounded-full border"></span>
                     <span id="seal-badge" class="hidden bg-red-100 text-red-600 text-xs px-2 py-1 rounded border border-red-200">🔒 已封存</span>
                 </h1>
-                <button onclick="logout()" class="text-sm text-slate-400 border px-3 py-1 rounded-lg hover:bg-red-50 hover:text-red-500 transition">登出</button>
+                <button onclick="logout()" class="text-sm font-bold text-slate-400 border px-3 py-1 rounded-lg hover:bg-red-50 hover:text-red-500 transition">登出</button>
             </div>
             <div class="flex flex-col lg:flex-row gap-4 lg:items-center">
                 <div class="flex gap-2 w-full lg:w-auto">
                     <button id="btn-twd" onclick="switchCurrency('TWD')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all">🇹🇼 台幣</button>
                     <button id="btn-sub" onclick="switchCurrency('SUB')" class="flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all">外幣</button>
                 </div>
-                <div class="grid grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                    <div><p class="text-xs text-slate-400">公款收入</p><p id="sum-income" class="amt-text text-green-600">0</p></div>
-                    <div class="border-l"><p class="text-xs text-slate-400">公款支出</p><p id="sum-expense" class="amt-text text-red-600">0</p></div>
-                    <div class="border-l"><p class="text-xs text-slate-400">公款餘額</p><p id="sum-balance" class="amt-text text-blue-600">0</p></div>
+                <div class="grid grid-cols-3 gap-2 flex-1 text-center bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-inner">
+                    <div><p class="text-xs text-slate-400 font-bold">公款總收入</p><p id="sum-income" class="amt-text text-green-600 text-lg">0</p></div>
+                    <div class="border-l border-slate-200"><p class="text-xs text-slate-400 font-bold">公款總支出</p><p id="sum-expense" class="amt-text text-red-600 text-lg">0</p></div>
+                    <div class="border-l border-slate-200"><p class="text-xs text-slate-400 font-bold">公款目前餘額</p><p id="sum-balance" class="amt-text text-blue-600 text-lg">0</p></div>
                 </div>
             </div>
         </header>
 
         <div class="app-container">
             <aside class="sticky-panel mb-4">
-                <details id="add-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group" open>
-                    <summary class="p-4 font-bold text-lg text-slate-800 cursor-pointer flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition">
-                        <span id="form-header-text">📝 新增支出 (台幣)</span>
+                <details id="add-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group">
+                    <summary class="p-5 font-bold text-lg text-slate-800 cursor-pointer flex justify-between items-center bg-white hover:bg-slate-50 transition select-none">
+                        <span id="form-header-text" class="flex items-center gap-2">📝 新增支出 <span class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded-full" id="cur-badge">台幣</span></span>
                         <span class="text-slate-400 arrow transition-transform duration-300">▼</span>
                     </summary>
                     <div class="p-6 pt-2 space-y-4 border-t border-slate-100">
                         <input type="hidden" id="edit-id" value="">
-                        <input type="date" id="exp-date" class="w-full p-3 bg-slate-50 border-0 rounded-xl font-bold text-slate-600">
                         <div class="grid grid-cols-3 gap-2">
-                            <select id="exp-cat" class="p-3 bg-slate-50 rounded-xl font-bold text-center">
+                            <input type="date" id="exp-date" class="col-span-1 p-3 bg-slate-50 rounded-xl font-bold text-slate-600 text-sm border-0 ring-1 ring-slate-200">
+                            <select id="exp-cat" class="col-span-2 p-3 bg-slate-50 rounded-xl font-bold text-center border-0 ring-1 ring-slate-200">
                                 <option value="🍽️ 餐飲">🍽️ 餐飲</option><option value="🚗 交通">🚗 交通</option><option value="🏠 住宿">🏠 住宿</option>
                                 <option value="🎫 票券">🎫 票券</option><option value="🛍️ 購物">🛍️ 購物</option><option value="🍹 飲料">🍹 飲料</option><option value="❤️ 其他">❤️ 其他</option>
                             </select>
-                            <input type="text" id="exp-title" placeholder="項目名稱" class="col-span-2 p-3 bg-slate-50 rounded-xl font-bold border-0 ring-1 ring-slate-200">
                         </div>
-                        <input type="number" id="exp-amt" placeholder="金額" class="w-full p-4 bg-slate-50 rounded-xl font-black text-xl text-blue-600 text-center placeholder-slate-300 border-0 ring-1 ring-slate-200">
+                        <input type="text" id="exp-title" placeholder="輸入項目名稱..." class="w-full p-3 bg-slate-50 rounded-xl font-bold border-0 ring-1 ring-slate-200 text-center">
                         
-                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                            <div class="flex justify-between items-center mb-2">
+                        <div class="bg-slate-50 p-2 rounded-xl ring-1 ring-slate-200">
+                            <input type="text" id="exp-amt-display" placeholder="0" readonly class="w-full bg-transparent text-right font-black text-3xl text-blue-600 p-2 mb-2 outline-none">
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="calcKey('7')" class="calc-btn">7</button><button onclick="calcKey('8')" class="calc-btn">8</button><button onclick="calcKey('9')" class="calc-btn">9</button><button onclick="calcKey('/')" class="calc-btn calc-op">÷</button>
+                                <button onclick="calcKey('4')" class="calc-btn">4</button><button onclick="calcKey('5')" class="calc-btn">5</button><button onclick="calcKey('6')" class="calc-btn">6</button><button onclick="calcKey('*')" class="calc-btn calc-op">×</button>
+                                <button onclick="calcKey('1')" class="calc-btn">1</button><button onclick="calcKey('2')" class="calc-btn">2</button><button onclick="calcKey('3')" class="calc-btn">3</button><button onclick="calcKey('-')" class="calc-btn calc-op">-</button>
+                                <button onclick="calcKey('C')" class="calc-btn text-red-500">C</button><button onclick="calcKey('0')" class="calc-btn">0</button><button onclick="calcKey('.')" class="calc-btn">.</button><button onclick="calcKey('+')" class="calc-btn calc-op">+</button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <div class="flex justify-between items-center mb-3">
                                 <label class="text-xs font-bold text-slate-500">支付方式</label>
-                                <select id="exp-path" onchange="togglePayerSelection()" class="text-sm p-1 rounded bg-white border-0 font-bold text-slate-700 ring-1 ring-slate-200">
+                                <select id="exp-path" onchange="togglePayerSelection()" class="text-sm p-2 rounded bg-white font-bold text-slate-700 ring-1 ring-slate-200 shadow-sm">
                                     <option id="opt-public-pay" value="public">公帳餘額支付</option>
                                     <option value="advance">個人代墊 (私帳)</option>
                                     <option value="personal">個人支付</option>
@@ -139,13 +157,13 @@
                             </div>
                             <div id="splitters-block">
                                 <label class="text-xs font-bold text-slate-500 mb-2 block">分攤成員 (預設全員)</label>
-                                <div id="splitters-grid" class="grid grid-cols-2 gap-2 text-sm"></div>
+                                <div id="splitters-grid" class="grid grid-cols-3 gap-2 text-sm"></div>
                             </div>
                         </div>
                         
                         <div class="flex gap-2">
                             <button id="btn-submit" onclick="handleRecordSubmit()" class="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-slate-900 transition active:scale-95">確認記帳</button>
-                            <button id="btn-cancel-edit" onclick="resetForm()" class="hidden w-20 bg-gray-200 text-gray-500 rounded-xl font-bold">取消</button>
+                            <button id="btn-cancel-edit" onclick="resetForm()" class="hidden w-24 bg-gray-200 text-gray-500 rounded-xl font-bold">取消</button>
                         </div>
                     </div>
                 </details>
@@ -157,40 +175,60 @@
                         <span>📊 公帳明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
                     <div class="p-4 border-t border-slate-100 space-y-4">
-                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
+                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition font-bold text-slate-500">🔃 切換排序</button></div>
                         <div class="flex justify-between items-center"><h4 class="font-bold text-green-700">📥 公帳收入</h4></div>
-                        <div id="income-list"></div>
+                        <div id="income-list" class="space-y-4"></div>
                         <div class="flex justify-between items-center pt-4 border-t"><h4 class="font-bold text-red-700">📤 公帳支出</h4></div>
-                        <div id="public-exp-list"></div>
+                        <div id="public-exp-list" class="space-y-4"></div>
                     </div>
                 </details>
+
                 <details id="panel-adv" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>⚡ 個人代墊</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
                     <div class="p-4 border-t border-slate-100">
-                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
-                        <div id="adv-list"></div>
+                        <div id="adv-list" class="space-y-4"></div>
                     </div>
                 </details>
+
                 <details id="panel-pvt" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>👤 個人明細</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
                     <div class="p-4 border-t border-slate-100">
-                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
-                        <div id="pvt-list"></div>
+                        <div id="pvt-list" class="space-y-4"></div>
                     </div>
                 </details>
-                <details id="panel-my" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
+
+                <details id="panel-ledger" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>📒 個人流水帳</span><span class="text-slate-400 arrow transition-transform">▼</span>
                     </summary>
-                    <div class="p-4 border-t border-slate-100">
-                        <div class="flex justify-end mb-2"><button onclick="toggleSort()" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition">🔃 切換排序 (新/舊)</button></div>
-                        <div id="ledger-content" class="space-y-6"></div>
+                    <div class="p-4 border-t border-slate-100 space-y-3">
+                        <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                            <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
+                                <span>🔵 公帳分攤 (您應付的)</span><span class="arrow transition-transform">▼</span>
+                            </summary>
+                            <div class="p-3 border-t bg-white" id="ledger-public"></div>
+                        </details>
+                        
+                        <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                            <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
+                                <span>🟣 個人支付 (自付紀錄)</span><span class="arrow transition-transform">▼</span>
+                            </summary>
+                            <div class="p-3 border-t bg-white" id="ledger-personal"></div>
+                        </details>
+
+                        <details class="group bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                            <summary class="p-3 font-bold text-slate-700 cursor-pointer flex justify-between hover:bg-slate-100">
+                                <span>🟠 代墊往來 (應收/應付)</span><span class="arrow transition-transform">▼</span>
+                            </summary>
+                            <div class="p-3 border-t bg-white" id="ledger-advance"></div>
+                        </details>
                     </div>
                 </details>
+
                 <details id="panel-stats" class="bg-white rounded-2xl shadow-sm border border-slate-200 group" ontoggle="if(this.open) renderStats()">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>📈 統計分析</span><span class="text-slate-400 arrow transition-transform">▼</span>
@@ -201,6 +239,7 @@
                         <div id="stats-detail-list" class="space-y-2"></div>
                     </div>
                 </details>
+
                 <details id="panel-final" class="bg-white rounded-2xl shadow-sm border border-slate-200 group">
                     <summary class="p-4 font-bold text-lg text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>🏁 最終結算</span><span class="text-slate-400 arrow transition-transform">▼</span>
@@ -215,6 +254,7 @@
                         <div id="settle-transfer-area" class="border-t pt-4"></div>
                     </div>
                 </details>
+
                 <details id="panel-admin" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 group border-l-4 border-l-slate-800">
                     <summary class="p-4 font-bold text-lg text-slate-800 cursor-pointer flex justify-between items-center">
                         <span>🛡️ 管理員專區</span><span class="text-slate-400 arrow transition-transform">▼</span>
@@ -244,11 +284,6 @@
                                             <option value="EUR">🇪🇺 歐元</option>
                                             <option value="CNY">🇨🇳 人民幣</option>
                                             <option value="THB">🇹🇭 泰銖</option>
-                                            <option value="SGD">🇸🇬 新幣</option>
-                                            <option value="MYR">🇲🇾 馬幣</option>
-                                            <option value="VND">🇻🇳 越南盾</option>
-                                            <option value="PHP">🇵🇭 披索</option>
-                                            <option value="IDR">🇮🇩 印尼盾</option>
                                         </select>
                                         <input type="text" id="set-sub-name" class="w-2/3 p-2 rounded border">
                                     </div>
@@ -288,10 +323,13 @@
         let isSortDesc = true; 
         let SMode = 'MIX';
         let chartInstance = null;
+        let calcVal = "";
+
+        // 系統密碼雜湊 (SHA-256 for 'djes.tyc-2026')
+        const SYSTEM_HASH = "9e70129204095066487570490906236166160350482599763590529819777174";
 
         window.onload = function() {
-            const savedBookId = localStorage.getItem('trip_book_id_memory');
-            if(savedBookId) document.getElementById('login-id').value = savedBookId;
+            // 嘗試自動登入
             const savedId = localStorage.getItem('trip_auto_id');
             const savedUser = localStorage.getItem('trip_auto_user');
             const savedPass = localStorage.getItem('trip_auto_pass');
@@ -312,6 +350,24 @@
             }
         };
 
+        // 介面切換
+        function showLoginInput(type) {
+            document.getElementById('portal-buttons').classList.add('hidden');
+            if(type==='EXIST') {
+                document.getElementById('exist-login-zone').classList.remove('hidden');
+                const mem = localStorage.getItem('trip_book_id_memory');
+                if(mem) document.getElementById('login-id').value = mem;
+            } else {
+                document.getElementById('new-create-zone').classList.remove('hidden');
+            }
+        }
+        function resetPortal() {
+            document.getElementById('portal-buttons').classList.remove('hidden');
+            document.getElementById('exist-login-zone').classList.add('hidden');
+            document.getElementById('new-create-zone').classList.add('hidden');
+        }
+
+        // 登入舊帳簿
         function checkBookExist() {
             const id = document.getElementById('login-id').value.trim();
             if (!id) return alert("請輸入ID");
@@ -326,38 +382,66 @@
                     if(!db.items) db.items = [];
                     if(!db.members) db.members = [];
                     renderUserSelect();
-                    document.getElementById('new-book-zone').classList.add('hidden');
+                    document.getElementById('exist-login-zone').classList.add('hidden');
                     document.getElementById('identity-zone').classList.remove('hidden');
                 } else {
-                    document.getElementById('new-book-zone').classList.remove('hidden');
-                    document.getElementById('identity-zone').classList.add('hidden');
-                    alert("查無此帳簿，請填寫下方資料建立新帳簿");
+                    alert("❌ 查無此帳簿，請確認 ID 或建立新帳簿");
                 }
+            }, (error) => {
+                document.getElementById('loading-mask').classList.add('hidden');
+                alert("連線錯誤，請檢查網路：" + error.message);
             });
         }
 
-        function createNewBook() {
-            const id = document.getElementById('login-id').value.trim();
-            const pass = document.getElementById('secure-code').value.trim();
-            const members = document.getElementById('new-members').value.split(/[,，\n\s]+/).map(m=>m.trim()).filter(m=>m);
-            const subName = document.getElementById('new-foreign-name').value.trim() || "外幣";
-            
-            if (!id || !pass || members.length < 1) return alert("資料不全，請確認ID、密碼與成員名單");
-            
-            db = { id, pass, members, subName, manager: members[0], adminPass: "1234", rate: 0.22, items: [], isSealed: false };
+        // 建立新帳簿流程
+        async function initiateCreateBook() {
+            const id = document.getElementById('new-book-id-input').value.trim();
+            if(!id) return alert("請輸入 ID");
             
             document.getElementById('loading-mask').classList.remove('hidden');
+            const snap = await rdb.ref('books/' + id).once('value');
+            document.getElementById('loading-mask').classList.add('hidden');
+
+            if(snap.exists()) return alert("此 ID 已被使用，請更換");
+
+            const inputPass = prompt("🔐 請輸入開新帳簿專用密碼：");
+            if(!inputPass) return;
+
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inputPass));
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            if(hashHex === SYSTEM_HASH) {
+                createDefaultBook(id);
+            } else {
+                alert("⛔ 密碼錯誤，無法開立新帳簿");
+            }
+        }
+
+        function createDefaultBook(id) {
+            db = { 
+                id: id, 
+                pass: "0000", 
+                members: ["管理員"], 
+                subName: "外幣", 
+                manager: "管理員", 
+                adminPass: "1234", 
+                rate: 1, 
+                items: [], 
+                isSealed: false 
+            };
             
-            rdb.ref('books/' + db.id).set(db)
-                .then(() => {
-                    document.getElementById('loading-mask').classList.add('hidden');
-                    alert("✅ 帳簿建立成功！請登入");
-                    checkBookExist(); 
-                })
-                .catch(error => {
-                    document.getElementById('loading-mask').classList.add('hidden');
-                    alert("❌ 建立失敗: " + error.message);
-                });
+            document.getElementById('loading-mask').classList.remove('hidden');
+            rdb.ref('books/' + id).set(db).then(() => {
+                document.getElementById('loading-mask').classList.add('hidden');
+                alert("✅ 帳簿已建立！\n\n預設密碼: 0000\n預設管理密碼: 1234\n\n即將進入管理專區進行設定...");
+                currentUser = "管理員";
+                initApp();
+                setTimeout(() => {
+                   document.getElementById('panel-admin').open = true;
+                   document.getElementById('panel-admin').scrollIntoView();
+                }, 500);
+            });
         }
 
         function lockIdentityAndEnter() {
@@ -375,12 +459,11 @@
         }
 
         function initApp() {
-            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('login-portal').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('loading-mask').classList.add('hidden');
             
             if(!db.members || db.members.length === 0) {
-                alert("警告：成員資料遺失，請聯繫管理員");
                 db.members = [currentUser || "Unknown"];
             }
 
@@ -398,11 +481,11 @@
                 document.getElementById('panel-admin').classList.add('hidden');
             }
 
-            document.getElementById('display-user').innerText = `👤 ${currentUser} ${currentUser === db.manager ? '(管理)' : ''}`;
+            document.getElementById('display-user').innerText = `👤 ${currentUser}`;
             document.getElementById('btn-sub').innerText = `🌍 ${db.subName}`;
+            document.getElementById('cur-badge').innerText = currentCur === 'TWD' ? '台幣' : db.subName;
             
             switchCurrency(currentCur);
-            
             document.getElementById('exp-date').valueAsDate = new Date();
             document.getElementById('fund-date').valueAsDate = new Date();
 
@@ -412,7 +495,7 @@
             
             const splittersGrid = document.getElementById('splitters-grid');
             splittersGrid.innerHTML = db.members.map(m=>`
-                <label class="flex items-center gap-1 p-2 bg-slate-50 rounded border cursor-pointer hover:bg-slate-100">
+                <label class="flex items-center gap-1 p-2 bg-white rounded border cursor-pointer hover:bg-slate-50">
                     <input type="checkbox" name="splitter" value="${m}" checked> ${m}
                 </label>
             `).join('');
@@ -443,6 +526,25 @@
             });
         }
 
+        // 計算機功能
+        function calcKey(k) {
+            const display = document.getElementById('exp-amt-display');
+            if(k === 'C') { calcVal = ""; display.value = ""; return; }
+            if(k === '+' || k === '-' || k === '*' || k === '/') {
+                calcVal += k;
+            } else {
+                calcVal += k;
+            }
+            display.value = calcVal;
+        }
+        function getCalcResult() {
+            try {
+                if(!calcVal) return 0;
+                const safe = calcVal.replace(/[^0-9+\-*/.]/g, '');
+                return eval(safe) || 0;
+            } catch(e) { return 0; }
+        }
+
         function updateSealUI() {
             const badge = document.getElementById('seal-badge');
             const btnSeal = document.getElementById('btn-seal');
@@ -465,9 +567,12 @@
             const curItems = db.items.filter(i => i.cur === currentCur);
             const totalFund = curItems.filter(i => i.type === 'fund').reduce((s, i) => s + (i.amt || 0), 0);
             const totalSpend = curItems.filter(i => i.type === 'public').reduce((s, i) => s + (i.amt || 0), 0);
+            
             document.getElementById('sum-income').innerText = `${Math.round(totalFund)}`;
             document.getElementById('sum-expense').innerText = `${Math.round(totalSpend)}`;
-            document.getElementById('sum-balance').innerText = `${Math.round(totalFund - totalSpend)}`;
+            const bal = totalFund - totalSpend;
+            document.getElementById('sum-balance').innerText = `${Math.round(bal)}`;
+            document.getElementById('sum-balance').className = `amt-text text-lg ${bal < 0 ? 'text-red-600' : 'text-blue-600'}`;
             
             renderLists();
             renderLedger();
@@ -476,46 +581,69 @@
             renderSettleReport();
         }
 
-        function toggleSort() {
-            isSortDesc = !isSortDesc;
-            refreshUI(false);
-        }
+        function toggleSort() { isSortDesc = !isSortDesc; refreshUI(false); }
 
         function renderLists() {
             const sortFactor = isSortDesc ? 1 : -1;
-            const list = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
+            const rawList = db.items.filter(i => i.cur === currentCur).sort((a, b) => sortFactor * b.date.localeCompare(a.date));
 
-            const inc = list.filter(i => i.type === 'fund');
-            document.getElementById('income-list').innerHTML = inc.map(i => {
-                return listRow(i, `每人${Math.round(i.amt / (i.splitters?.length || db.members.length))}`, 'text-green-600', `+${Math.round(i.amt)}`, currentUser === db.manager);
-            }).join('') || noData();
+            function renderGrouped(list, renderer) {
+                if(list.length === 0) return noData();
+                const grouped = {};
+                list.forEach(i => { if(!grouped[i.date]) grouped[i.date]=[]; grouped[i.date].push(i); });
+                
+                return Object.keys(grouped).sort((a,b) => sortFactor * b.localeCompare(a)).map(date => `
+                    <div class="mb-4">
+                        <div class="sticky top-0 bg-slate-100/95 p-2 px-3 rounded-lg text-slate-500 font-bold text-sm backdrop-blur-sm z-10 border border-slate-200 shadow-sm inline-block mb-2">📅 ${date}</div>
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                            ${grouped[date].map(renderer).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            }
 
-            const pub = list.filter(i => i.type === 'public');
-            document.getElementById('public-exp-list').innerHTML = pub.map(i => {
-                return listRow(i, `每人分攤${Math.round(i.amt / (i.splitters?.length || 1))}`, 'text-red-600', `-${Math.round(i.amt)}`, currentUser === db.manager || i.payer === currentUser);
-            }).join('') || noData();
+            const inc = rawList.filter(i => i.type === 'fund');
+            document.getElementById('income-list').innerHTML = renderGrouped(inc, i => 
+                listRow(i, `每人${Math.round(i.amt / (i.splitters?.length || db.members.length))}`, 'text-green-600', `+${Math.round(i.amt)}`, currentUser === db.manager)
+            );
 
-            const adv = list.filter(i => i.type === 'advance');
-            document.getElementById('adv-list').innerHTML = adv.map(i => {
+            const pub = rawList.filter(i => i.type === 'public');
+            document.getElementById('public-exp-list').innerHTML = renderGrouped(pub, i => 
+                listRow(i, `每人分攤${Math.round(i.amt / (i.splitters?.length || 1))}`, 'text-red-600', `-${Math.round(i.amt)}`, currentUser === db.manager || i.payer === currentUser)
+            );
+
+            const adv = rawList.filter(i => i.type === 'advance');
+            document.getElementById('adv-list').innerHTML = renderGrouped(adv, i => {
                 const canEdit = currentUser === db.manager || i.payer === currentUser || i.splitters.includes(currentUser);
                 return listRow(i, `${i.payer}先墊 | 分攤:${i.splitters.join(',')}`, 'text-green-600', `${Math.round(i.amt)}`, canEdit);
-            }).join('') || noData();
+            });
 
-            const pvt = list.filter(i => i.type === 'personal' && i.payer === currentUser);
-            document.getElementById('pvt-list').innerHTML = pvt.map(i => {
-                return listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true);
-            }).join('') || noData();
+            const pvt = rawList.filter(i => i.type === 'personal' && i.payer === currentUser);
+            document.getElementById('pvt-list').innerHTML = renderGrouped(pvt, i => 
+                listRow(i, `個人支付`, 'text-red-600', `-${Math.round(i.amt)}`, true)
+            );
         }
 
         function listRow(i, sub, color, amt, canEdit) {
-            const editBtn = (!db.isSealed && canEdit) ? `<button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-400 underline mr-2">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-400 underline">刪除</button>` : '';
+            const editBtn = (!db.isSealed && canEdit) ? `<div class="mt-1 flex justify-end gap-3"><button onclick="loadItemForEdit(${i.id})" class="text-xs text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded">修改</button><button onclick="deleteItem(${i.id})" class="text-xs text-red-500 font-bold bg-red-50 px-2 py-1 rounded">刪除</button></div>` : '';
             const icon = i.cat ? i.cat.split(' ')[0] : '💸';
-            return `<div class="flex justify-between p-3 border-b border-slate-100 bg-white items-center">
-                <div><div class="text-xs text-slate-400">${i.date}</div><div class="font-bold text-lg text-slate-700">${icon} ${i.title} <span class="text-xs text-slate-400 font-normal ml-1">(${sub})</span></div></div>
-                <div class="text-right"><div class="${color} font-bold text-lg amt-text">${amt}</div>${editBtn}</div>
+            return `<div class="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                <div class="flex justify-between items-start">
+                    <div class="flex gap-3">
+                        <div class="text-2xl bg-slate-100 rounded-lg w-10 h-10 flex items-center justify-center">${icon}</div>
+                        <div>
+                            <div class="font-bold text-slate-800">${i.title}</div>
+                            <div class="text-xs text-slate-400 mt-1">${sub}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="${color} font-black text-lg amt-text">${amt}</div>
+                    </div>
+                </div>
+                ${editBtn}
             </div>`;
         }
-        function noData() { return '<p class="p-4 text-slate-400 text-center text-sm">無資料</p>'; }
+        function noData() { return '<p class="p-4 text-slate-300 text-center text-sm font-bold">無資料</p>'; }
 
         function loadItemForEdit(id) {
             if(db.isSealed) return alert("帳簿已封存");
@@ -525,10 +653,13 @@
             document.getElementById('exp-date').value = item.date;
             document.getElementById('exp-cat').value = item.cat || '❤️ 其他';
             document.getElementById('exp-title').value = item.title;
-            document.getElementById('exp-amt').value = item.amt;
+            
+            calcVal = item.amt.toString();
+            document.getElementById('exp-amt-display').value = calcVal;
+
             document.getElementById('exp-path').value = item.type;
             
-            document.getElementById('form-header-text').innerText = "✏️ 編輯項目";
+            document.getElementById('form-header-text').innerHTML = "✏️ 編輯項目";
             document.getElementById('btn-submit').innerText = "確認修改";
             document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-lg shadow-lg";
             document.getElementById('btn-cancel-edit').classList.remove('hidden');
@@ -540,14 +671,14 @@
             checks.forEach(c => c.checked = item.splitters ? item.splitters.includes(c.value) : false);
 
             document.getElementById('add-panel').open = true;
-            document.querySelector('.app-container').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('add-panel').scrollIntoView({ behavior: 'smooth' });
         }
 
         function resetForm() {
             document.getElementById('edit-id').value = "";
             document.getElementById('exp-title').value = "";
-            document.getElementById('exp-amt').value = "";
-            document.getElementById('form-header-text').innerText = `📝 新增支出 (${currentCur==='TWD'?'台幣':db.subName})`;
+            calcVal = ""; document.getElementById('exp-amt-display').value = "";
+            document.getElementById('form-header-text').innerHTML = `📝 新增支出 <span class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded-full">${currentCur==='TWD'?'台幣':db.subName}</span>`;
             document.getElementById('btn-submit').innerText = "確認記帳";
             document.getElementById('btn-submit').className = "flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-lg shadow-lg";
             document.getElementById('btn-cancel-edit').classList.add('hidden');
@@ -557,16 +688,18 @@
         function handleRecordSubmit() {
             if(db.isSealed) return alert("帳簿已封存");
             const editId = document.getElementById('edit-id').value;
-            if(editId) updateRecord(editId); else addRecord();
+            const amt = getCalcResult();
+            if(amt <= 0) return alert("請輸入有效金額");
+            
+            if(editId) updateRecord(editId, amt); else addRecord(amt);
         }
 
-        function addRecord() {
+        function addRecord(amt) {
             const date = document.getElementById('exp-date').value;
             const title = document.getElementById('exp-title').value.trim();
-            const amt = parseFloat(document.getElementById('exp-amt').value);
             const cat = document.getElementById('exp-cat').value;
             const type = document.getElementById('exp-path').value;
-            if (!date || !title || !amt) return alert("資料不完整");
+            if (!date || !title) return alert("請填寫日期與名稱");
 
             let splitters = [];
             if (type === 'personal') { 
@@ -584,11 +717,10 @@
             refreshUI(); alert("✅ 記帳成功"); resetForm();
         }
 
-        function updateRecord(id) {
+        function updateRecord(id, amt) {
             const idx = db.items.findIndex(i => i.id == id);
             const date = document.getElementById('exp-date').value;
             const title = document.getElementById('exp-title').value.trim();
-            const amt = parseFloat(document.getElementById('exp-amt').value);
             const cat = document.getElementById('exp-cat').value;
             const type = document.getElementById('exp-path').value;
             
@@ -598,7 +730,6 @@
             } else {
                 const checkboxes = document.querySelectorAll('input[name="splitter"]:checked');
                 splitters = Array.from(checkboxes).map(c => c.value);
-                if (splitters.length === 0) return alert("請至少選擇一位分攤成員");
             }
 
             let payer = (type === 'public') ? "公帳" : (type === 'personal' ? currentUser : document.getElementById('payer-member').value);
@@ -613,68 +744,43 @@
         }
 
         function renderLedger() {
-            const sortFactor = isSortDesc ? 1 : -1;
-            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => sortFactor * b.date.localeCompare(a.date));
-            
-            let htmls = { pf: "", pc: "", ap: "", ac: "", pp: "" };
-            let sums = { pf: 0, pc: 0, ap: 0, ac: 0, pp: 0 };
-            let nets = { pub: 0, adv: 0 };
+            const list = db.items.filter(i => i.cur === currentCur).sort((a,b) => b.date.localeCompare(a.date));
+            let hPub = "", hPers = "", hAdv = "";
 
             list.forEach(i => {
                 const share = Math.round(i.amt / (i.splitters?.length || 1));
                 const icon = i.cat ? i.cat.split(' ')[0] : '💸';
                 
-                if (i.type === 'fund' && i.splitters.includes(currentUser)) {
-                    sums.pf += share; nets.pub += share;
-                    htmls.pf += lRow(i.date, "預繳公帳", "text-green-600", `+${share}`);
-                }
                 if (i.type === 'public' && i.splitters.includes(currentUser)) {
-                    sums.pc += share; nets.pub -= share;
-                    htmls.pc += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
+                    hPub += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${share}`);
                 }
-                if (i.type === 'advance' && i.payer === currentUser) {
-                    sums.ap += i.amt; nets.adv += i.amt;
-                    htmls.ap += lRow(i.date, `${icon} (我) ➡ (${i.splitters.join(',')})`, "text-green-600", `+${Math.round(i.amt)}`, `代墊 ${i.title}`);
+                if (i.type === 'fund' && i.splitters.includes(currentUser)) {
+                    hPub += lRow(i.date, `💰 預繳公帳`, "text-green-600", `+${share}`);
                 }
-                if (i.type === 'advance' && i.splitters.includes(currentUser)) {
-                    sums.ac += share; nets.adv -= share;
-                    htmls.ac += lRow(i.date, `${icon} (${i.payer}) ➡ (${i.splitters.join(',')})`, "text-red-600", `-${share}`, i.title);
-                }
+
                 if (i.type === 'personal' && i.payer === currentUser) {
-                    sums.pp += i.amt;
-                    htmls.pp += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
+                    hPers += lRow(i.date, `${icon} ${i.title}`, "text-red-600", `-${Math.round(i.amt)}`);
+                }
+
+                if (i.type === 'advance') {
+                    if (i.payer === currentUser) {
+                        hAdv += lRow(i.date, `${icon} 我 ➡ ${i.splitters.join(',')}`, "text-green-600", `+${Math.round(i.amt)}`, `(我幫墊 ${i.title})`);
+                    } else if (i.splitters.includes(currentUser)) {
+                        hAdv += lRow(i.date, `${icon} ${i.payer} ➡ 我`, "text-red-600", `-${share}`, `(${i.payer}幫墊 ${i.title})`);
+                    }
                 }
             });
 
-            const html = `
-                <div class="mb-8">
-                    <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-slate-800">🔵 公帳分攤</h4>
-                    ${lBlock("預繳存入", htmls.pf, sums.pf)}
-                    ${lBlock("消費扣抵", htmls.pc, sums.pc)}
-                    <div class="text-right font-black p-3 mt-2 border-t text-slate-700">公帳權益: <span class="text-blue-600">${nets.pub}</span></div>
-                </div>
-                <div class="mb-8">
-                    <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-purple-500">🟣 個人支付</h4>
-                    ${lBlock("個人支出", htmls.pp, sums.pp)}
-                </div>
-                <div>
-                    <h4 class="font-black text-lg text-slate-800 mb-3 pl-2 border-l-4 border-orange-500">🟠 代墊往來</h4>
-                    ${lBlock("我幫人墊 (應收)", htmls.ap, sums.ap)}
-                    ${lBlock("人幫我墊 (應付)", htmls.ac, sums.ac)}
-                    <div class="text-right font-black p-3 mt-2 border-t text-slate-700">代墊淨額: <span class="text-blue-600">${nets.adv}</span></div>
-                </div>`;
-            document.getElementById('ledger-content').innerHTML = html;
+            document.getElementById('ledger-public').innerHTML = hPub || '<div class="text-center text-slate-300 py-2">無資料</div>';
+            document.getElementById('ledger-personal').innerHTML = hPers || '<div class="text-center text-slate-300 py-2">無資料</div>';
+            document.getElementById('ledger-advance').innerHTML = hAdv || '<div class="text-center text-slate-300 py-2">無資料</div>';
         }
+
         function lRow(d, t, c, a, sub='') {
-            return `<div class="flex justify-between p-3 border-b border-slate-100 items-center">
-                <div><div class="text-xs text-slate-400">${d} ${sub}</div><div class="font-bold text-slate-700">${t}</div></div>
+            return `<div class="flex justify-between py-2 border-b border-slate-100 items-center last:border-0">
+                <div><div class="text-xs text-slate-400">${d}</div><div class="font-bold text-slate-700 text-sm">${t} <span class="text-xs font-normal text-slate-400">${sub}</span></div></div>
                 <div class="${c} font-bold amt-text">${a}</div>
             </div>`;
-        }
-        function lBlock(title, rows, sum) {
-            return `<div class="text-sm font-bold text-slate-500 mb-1 pl-2">${title}</div>
-            <div class="bg-white border-y border-slate-200 mb-2">${rows || '<p class="p-3 text-sm text-slate-300">無紀錄</p>'}</div>
-            <div class="text-right text-xs text-slate-900 font-bold pr-3 mb-4">小計: ${sum}</div>`;
         }
 
         function renderStats() {
@@ -690,7 +796,7 @@
                 if (cost > 0) { cats[i.cat] = (cats[i.cat] || 0) + cost; total += cost; }
             });
             document.getElementById('stats-total').innerText = `${Math.round(total)}`;
-            document.getElementById('stats-detail-list').innerHTML = Object.entries(cats).map(([cat, val]) => `
+            document.getElementById('stats-detail-list').innerHTML = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat, val]) => `
                 <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                     <span class="font-bold text-slate-600">${cat}</span>
                     <span class="font-black text-blue-600 amt-text">${Math.round(val)}</span>
@@ -702,7 +808,7 @@
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(cats),
-                    datasets: [{ data: Object.values(cats).map(v => Math.round(v)), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] }]
+                    datasets: [{ data: Object.values(cats).map(v => Math.round(v)), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1'] }]
                 }, options: { responsive: true, maintainAspectRatio: false }
             });
         }
@@ -729,7 +835,6 @@
 
                 if (i.type === 'fund') {
                     potBalance += val;
-                    // 預繳：payer 視為「已付」
                     if(i.payer === '全員') {
                         i.splitters.forEach(m => { if(stats[m]) stats[m].paid += share; });
                     } else if(stats[i.payer]) {
@@ -738,61 +843,47 @@
                 }
                 else if (i.type === 'public') {
                     potBalance -= val;
-                    // 公帳支出：splitters 增加「應付(share)」
                     i.splitters.forEach(m => { if(stats[m]) stats[m].share += share; });
                 }
                 else if (i.type === 'advance') {
-                    // 代墊：payer 增加「已付」，splitters 增加「應付」
                     if(stats[i.payer]) stats[i.payer].paid += val;
                     i.splitters.forEach(m => { if(stats[m]) stats[m].share += share; });
                 }
             });
 
-            // 計算初始 Balance (不含 Pot 剩餘款)
-            Object.keys(stats).forEach(m => {
-                stats[m].bal = stats[m].paid - stats[m].share;
-            });
+            Object.keys(stats).forEach(m => { stats[m].bal = stats[m].paid - stats[m].share; });
 
-            // 1. 顯示表格 (純粹顯示個人 預繳/代墊 vs 應付/消費)
-            let tableHtml = `<table class="w-full text-sm text-center border-collapse">
-                <thead class="bg-slate-100 text-slate-600"><tr>
-                    <th class="p-2 border-b">成員</th>
-                    <th class="p-2 border-b">預繳/代墊</th>
-                    <th class="p-2 border-b">應付/消費</th>
-                    <th class="p-2 border-b">帳面結餘</th>
+            let tableHtml = `<table class="w-full text-sm text-center border-collapse rounded-lg overflow-hidden shadow-sm">
+                <thead class="bg-slate-800 text-white"><tr>
+                    <th class="p-3">成員</th>
+                    <th class="p-3">預繳/代墊</th>
+                    <th class="p-3">應付/消費</th>
+                    <th class="p-3">帳面結餘</th>
                 </tr></thead><tbody>`;
             
             db.members.forEach(m => {
                 const s = stats[m];
-                tableHtml += `<tr class="border-b bg-white">
+                tableHtml += `<tr class="border-b bg-white last:border-0 hover:bg-slate-50">
                     <td class="p-3 font-bold text-slate-800">${m}</td>
                     <td class="p-3 text-green-600 font-bold amt-text">${Math.round(s.paid)}</td>
                     <td class="p-3 text-red-600 font-bold amt-text">${Math.round(s.share)}</td>
                     <td class="p-3 font-black amt-text ${s.bal>=0?'text-blue-600':'text-red-500'}">${s.bal>=0?'+':''}${Math.round(s.bal)}</td>
                 </tr>`;
             });
-            tableHtml += `</tbody></table>
-            <div class="mt-2 text-xs text-slate-400 text-center">* 上表僅顯示個人收支，尚未包含公帳結餘歸屬</div>`;
+            tableHtml += `</tbody></table>`;
             document.getElementById('settle-table-area').innerHTML = tableHtml;
 
-            // 2. 計算最終轉帳 (將公帳餘額算給管理員)
-            // 複製一份 stats 進行結算運算，不動表格數據
             const finalBalances = {};
             db.members.forEach(m => finalBalances[m] = stats[m].bal);
 
-            // 公帳邏輯：
-            // potBalance > 0 (剩錢): 管理員欠大家 -> 管理員 Balance 減少 (要吐出來)
-            // potBalance < 0 (透支): 大家欠管理員 -> 管理員 Balance 增加 (要收回來)
-            // 數學上: finalBalances[manager] -= potBalance (減去正值=變負, 減去負值=變正)
             if (db.manager && finalBalances[db.manager] !== undefined) {
                 finalBalances[db.manager] -= potBalance;
             }
 
             const potText = potBalance >= 0 ? 
-                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${Math.round(potBalance)}</span> (由 ${db.manager} 退還)` : 
-                `💸 公帳透支 <span class="text-red-600 font-bold">${Math.round(Math.abs(potBalance))}</span> (由 ${db.manager} 先墊)`;
+                `💰 公帳剩餘 <span class="text-blue-600 font-bold">${Math.round(potBalance)}</span> (視為管理員負債，列入分帳)` : 
+                `💸 公帳透支 <span class="text-red-600 font-bold">${Math.round(Math.abs(potBalance))}</span> (視為管理員代墊，列入分帳)`;
             
-            // 產生轉帳清單
             let receivers = [];
             let payers = [];
             for (const [m, bal] of Object.entries(finalBalances)) {
@@ -805,7 +896,7 @@
             let logs = [];
             payers.forEach(p => { 
                 receivers.forEach(r => {
-                    if (p.bal <= 0 || r.bal <= 0) return;
+                    if (p.bal <= 0.1 || r.bal <= 0.1) return;
                     let amt = Math.min(p.bal, r.bal);
                     logs.push(`<b>${p.name}</b> ➡️ <b>${r.name}</b>：${Math.round(amt)}`);
                     p.bal -= amt; r.bal -= amt;
@@ -813,17 +904,18 @@
             });
 
             document.getElementById('settle-transfer-area').innerHTML = `
-                <div class="bg-slate-50 p-3 rounded border mb-4 text-sm text-center">${potText}</div>
-                <h4 class="font-bold text-slate-700 mb-3">💸 建議轉帳 (已結清所有帳目)</h4>
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4 text-sm text-center shadow-sm">${potText}</div>
+                <h4 class="font-bold text-slate-700 mb-3 text-lg">💸 建議轉帳 (已結清所有帳目)</h4>
                 <div class="space-y-2 text-sm">
-                    ${logs.length ? logs.map(l=>`<div class="bg-white p-3 border rounded shadow-sm border-l-4 border-blue-500 flex items-center gap-2">${l}</div>`).join('') : '<div class="text-center text-slate-400">帳目已平，無需轉帳</div>'}
+                    ${logs.length ? logs.map(l=>`<div class="bg-white p-4 border rounded-xl shadow-sm border-l-4 border-blue-500 flex items-center gap-2 text-base">${l}</div>`).join('') : '<div class="text-center text-slate-400 font-bold py-4">🎉 帳目已平，無需轉帳</div>'}
                 </div>`;
         }
 
         function switchSettleMode(m) { SMode = m; refreshUI(false); }
         function switchCurrency(c) { 
             currentCur = c; 
-            document.getElementById('form-header-text').innerText = `📝 新增支出 (${c==='TWD'?'台幣':db.subName})`;
+            document.getElementById('cur-badge').innerText = c==='TWD'?'台幣':db.subName;
+            resetForm();
             refreshUI(false); 
             document.getElementById('btn-twd').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='TWD'?'currency-active':'bg-white text-slate-400'}`;
             document.getElementById('btn-sub').className = `flex-1 lg:flex-none px-6 py-3 rounded-xl font-bold border-2 transition-all ${c==='SUB'?'currency-active':'bg-white text-slate-400'}`;
@@ -847,17 +939,12 @@
             const p = parseFloat(document.getElementById('fund-amt').value); if(!p)return; 
             db.items.push({id:Date.now(), date:document.getElementById('fund-date').value, cat:"💰", title:"全員公帳預繳", amt:p*db.members.length, cur:currentCur, type:'fund', payer:"全員", splitters:[...db.members]}); refreshUI(); alert("入帳成功");
         }
-        
         function updateSubNameBySelect(val) {
             if(!val) return;
             document.getElementById('set-sub-name').value = val;
-            const rates = { 
-                'JPY': 0.22, 'USD': 31.5, 'EUR': 34.5, 'KRW': 0.024, 'CNY': 4.4, 'THB': 0.9,
-                'SGD': 23.5, 'MYR': 7.1, 'VND': 0.0013, 'PHP': 0.56, 'IDR': 0.002
-            };
+            const rates = { 'JPY': 0.22, 'USD': 31.5, 'EUR': 34.5, 'KRW': 0.024, 'CNY': 4.4, 'THB': 0.9 };
             if(rates[val]) document.getElementById('set-rate').value = rates[val];
         }
-
         function updateSettings() {
             if(db.isSealed) return alert("帳簿已封存");
             db.members = document.getElementById('set-members').value.split(/[,，]/).map(m=>m.trim()).filter(m=>m);
